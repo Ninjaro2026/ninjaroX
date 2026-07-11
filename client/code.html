@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>The Effervescent Editorial - 30-Second Ritual</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-tertiary-fixed-variant": "#563000",
+                        "error-container": "#fb5151",
+                        "on-error": "#ffefee",
+                        "surface-container-high": "#abf1d2",
+                        "on-tertiary-fixed": "#271300",
+                        "tertiary-dim": "#754400",
+                        "surface-container-highest": "#a0eccb",
+                        "tertiary": "#864e00",
+                        "surface": "#daffec",
+                        "inverse-on-surface": "#74a891",
+                        "error": "#b31b25",
+                        "secondary-dim": "#005578",
+                        "primary-dim": "#005c36",
+                        "tertiary-fixed-dim": "#eb8d00",
+                        "on-primary-container": "#00623a",
+                        "primary": "#00693f",
+                        "on-secondary-fixed-variant": "#005779",
+                        "on-surface-variant": "#326551",
+                        "on-primary-fixed": "#004d2d",
+                        "surface-bright": "#daffec",
+                        "on-secondary": "#e8f4ff",
+                        "error-dim": "#9f0519",
+                        "inverse-primary": "#99fdbf",
+                        "tertiary-container": "#fe9800",
+                        "primary-fixed": "#99fdbf",
+                        "on-secondary-container": "#004d6c",
+                        "surface-container": "#b5f6d8",
+                        "on-primary-fixed-variant": "#006d41",
+                        "on-background": "#003626",
+                        "on-tertiary-container": "#4a2900",
+                        "secondary-fixed": "#9fd9ff",
+                        "secondary-fixed-dim": "#7acdff",
+                        "outline-variant": "#84b8a1",
+                        "on-primary": "#cbffda",
+                        "surface-dim": "#93e5c2",
+                        "on-error-container": "#570008",
+                        "secondary-container": "#9fd9ff",
+                        "primary-fixed-dim": "#8beeb2",
+                        "on-tertiary": "#fff0e5",
+                        "surface-variant": "#a0eccb",
+                        "tertiary-fixed": "#fe9800",
+                        "on-secondary-fixed": "#003851",
+                        "inverse-surface": "#00120a",
+                        "surface-container-lowest": "#ffffff",
+                        "surface-container-low": "#c1fee2",
+                        "primary-container": "#99fdbf",
+                        "outline": "#4e816c",
+                        "surface-tint": "#00693f",
+                        "background": "#daffec",
+                        "on-surface": "#003626",
+                        "secondary": "#006289"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "fontFamily": {
+                        "headline": ["Plus Jakarta Sans", "sans-serif"],
+                        "display": ["Plus Jakarta Sans", "sans-serif"],
+                        "body": ["Plus Jakarta Sans", "sans-serif"],
+                        "label": ["Plus Jakarta Sans", "sans-serif"]
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-surface text-on-surface font-body antialiased min-h-screen flex flex-col">
+<!-- Top Navigation (Shared Component) -->
+<nav class="fixed top-0 w-full z-50 bg-emerald-50/80 dark:bg-emerald-950/80 backdrop-blur-xl shadow-[0_20px_40px_rgba(0,54,38,0.06)] bg-emerald-100/20 dark:bg-emerald-800/20">
+<div class="flex justify-between items-center w-full px-8 py-4 max-w-7xl mx-auto">
+<!-- Brand Logo -->
+<a class="text-xl font-bold italic text-emerald-900 dark:text-emerald-100 tracking-tighter hover:bg-emerald-100/50 dark:hover:bg-emerald-800/50 rounded-xl transition-all scale-95 active:scale-90 transition-transform duration-300 px-2 py-1" href="#">
+                The Effervescent Editorial
+            </a>
+<!-- Navigation Links -->
+<div class="hidden md:flex space-x-8">
+<a class="font-['Plus_Jakarta_Sans'] tracking-tight font-medium text-sm text-emerald-800/70 dark:text-emerald-200/70 hover:text-emerald-900 dark:hover:text-emerald-50 transition-colors py-1" href="#">The Collection</a>
+<a class="font-['Plus_Jakarta_Sans'] tracking-tight font-medium text-sm text-emerald-900 dark:text-emerald-50 font-bold border-b-2 border-emerald-900 dark:border-emerald-50 pb-1" href="#">Mixology</a>
+<a class="font-['Plus_Jakarta_Sans'] tracking-tight font-medium text-sm text-emerald-800/70 dark:text-emerald-200/70 hover:text-emerald-900 dark:hover:text-emerald-50 transition-colors py-1" href="#">Botanicals</a>
+<a class="font-['Plus_Jakarta_Sans'] tracking-tight font-medium text-sm text-emerald-800/70 dark:text-emerald-200/70 hover:text-emerald-900 dark:hover:text-emerald-50 transition-colors py-1" href="#">About</a>
+</div>
+<!-- Actions -->
+<div class="flex items-center space-x-6">
+<button class="hidden md:block font-['Plus_Jakarta_Sans'] tracking-tight font-medium text-sm text-emerald-900 dark:text-emerald-100 hover:bg-emerald-100/50 dark:hover:bg-emerald-800/50 rounded-xl transition-all scale-95 active:scale-90 transition-transform duration-300 px-4 py-2">
+                    Shop Now
+                </button>
+<button class="text-emerald-900 dark:text-emerald-100 hover:bg-emerald-100/50 dark:hover:bg-emerald-800/50 rounded-xl transition-all scale-95 active:scale-90 transition-transform duration-300 p-2">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">shopping_bag</span>
+</button>
+</div>
+</div>
+</nav>
+<!-- Main Content Canvas -->
+<main class="flex-grow pt-32 pb-24 px-6 md:px-12 lg:px-24">
+<!-- Header Section -->
+<header class="max-w-4xl mx-auto text-center mb-32 relative">
+<div class="absolute inset-0 bg-surface-container-lowest/40 backdrop-blur-3xl rounded-[3rem] -z-10 transform -rotate-2 scale-105"></div>
+<h1 class="font-display text-5xl md:text-7xl font-extrabold tracking-tighter text-primary mb-6 leading-[0.9]">
+                The 30-Second <br/>
+<span class="text-tertiary italic font-serif opacity-90">Ritual</span>
+</h1>
+<p class="font-body text-lg md:text-xl text-on-surface-variant max-w-2xl mx-auto leading-relaxed">
+                Transform any moment into an occasion. A meticulously crafted experience that requires nothing more than water, ice, and a moment of anticipation.
+            </p>
+</header>
+<!-- Ritual Steps Layout - Asymmetric & Editorial -->
+<section class="max-w-7xl mx-auto relative space-y-32 md:space-y-48">
+<!-- Step 01: Empty -->
+<article class="relative flex flex-col md:flex-row items-center gap-12 lg:gap-24">
+<!-- Large Number Decor -->
+<div class="absolute -left-8 md:-left-24 top-0 md:-top-16 text-[8rem] md:text-[14rem] font-bold text-surface-container-high opacity-40 select-none z-0 tracking-tighter">01</div>
+<!-- Image Block -->
+<div class="w-full md:w-5/12 relative z-10 group">
+<div class="aspect-[4/5] rounded-[2rem] overflow-hidden shadow-[0_20px_40px_rgba(0,54,38,0.06)] relative">
+<img class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" data-alt="close up of elegantly tearing a sleek minimalist single serve sachet of mocktail powder, warm ambient light" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCy4Fl0CLLUldmlFqc9t_p8x9GNpV3njZbRfd_ufqjfGuCrzOLvSuNx7xAc6sAFmiNAvMWX2EZz6Glug9ObwPJq90AAMt1PhGeQTSlB2AFQEWQcGqzBJP14_jMYzGufVTA65Qpac7Z0Wen8tnI_O1lS8clXU3rRAYkjUEuuWX7Jr0bRQ_WkWsMetuyfrZ_WkoJ9tOQSSeNe4RBo93xcmDQKbZfRpH1zHXfSDPTIZZuDv1rotQsCVWJH1neMWDgi5-SKn9JR1Nv_UGjR"/>
+<div class="absolute inset-0 bg-gradient-to-tr from-primary/20 to-transparent mix-blend-overlay"></div>
+</div>
+<!-- Overlapping Zest Chip -->
+<div class="absolute -bottom-6 -right-6 bg-tertiary-container text-on-tertiary-container px-6 py-3 rounded-xl font-bold tracking-wide shadow-lg transform rotate-3 z-20">
+                        Preparation
+                    </div>
+</div>
+<!-- Content Block -->
+<div class="w-full md:w-7/12 relative z-10 md:pl-12">
+<div class="bg-surface-container-lowest/60 backdrop-blur-2xl rounded-3xl p-8 md:p-12 border border-outline-variant/20 shadow-[0_10px_30px_rgba(0,54,38,0.03)] relative overflow-hidden">
+<!-- Decorative gradient blob -->
+<div class="absolute -top-24 -right-24 w-64 h-64 bg-primary-container rounded-full mix-blend-multiply filter blur-3xl opacity-50"></div>
+<h2 class="font-display text-4xl md:text-5xl font-bold text-primary mb-4 tracking-tight">Empty</h2>
+<div class="w-12 h-1 bg-tertiary rounded-full mb-6"></div>
+<p class="font-body text-xl text-on-surface-variant leading-relaxed">
+                            Tear open a single-serve sachet and pour into your favorite glass. The foundation of flavor begins with the finest botanical extracts, carefully preserved for this precise moment.
+                        </p>
+</div>
+</div>
+</article>
+<!-- Step 02: Add (Reversed Layout) -->
+<article class="relative flex flex-col md:flex-row-reverse items-center gap-12 lg:gap-24">
+<!-- Large Number Decor -->
+<div class="absolute -right-8 md:-right-24 top-0 md:-top-16 text-[8rem] md:text-[14rem] font-bold text-surface-container-high opacity-40 select-none z-0 tracking-tighter">02</div>
+<!-- Image Block -->
+<div class="w-full md:w-6/12 relative z-10 group">
+<div class="aspect-square md:aspect-[4/3] rounded-[2rem] overflow-hidden shadow-[0_20px_40px_rgba(0,54,38,0.06)] relative ml-auto">
+<img class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" data-alt="pouring crisp chilled water over crystal clear artisan ice cubes in a sophisticated ribbed glass" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCFoewPJKDCpdx1WIvxotYHlIN154t4zIqTWaUVceSDrI6wTYHMQH5Wy0Oo0a98TGAk-5rSNZJGCGInzsZ472nsvHJJVLForPFz2klYNVfmlcLqtu1fB-BNm1zFlRVwWL0g3M3UqGHoser9ESYL8dBtZvBGu2Rhu97TSBw7GeYD6Zq_smDBPWJP_cpiZG_7tRWwgc30ewa65Vbvc7Fpzwt_pqguW80QdAp4klRLZ-qae5A3Csu6DiuqnYejpqWl5CAMyrGADOyctP1I"/>
+<!-- Glass reflection effect -->
+<div class="absolute inset-0 bg-gradient-to-bl from-white/20 to-transparent"></div>
+</div>
+<!-- Overlapping Zest Chip -->
+<div class="absolute -top-6 -left-6 bg-secondary-container text-on-secondary-container px-6 py-3 rounded-xl font-bold tracking-wide shadow-lg transform -rotate-2 z-20">
+                        Hydration
+                    </div>
+</div>
+<!-- Content Block -->
+<div class="w-full md:w-6/12 relative z-10 md:pr-12 text-left md:text-right flex flex-col md:items-end">
+<div class="bg-surface-container-low rounded-3xl p-8 md:p-12 relative overflow-hidden">
+<h2 class="font-display text-4xl md:text-5xl font-bold text-secondary mb-4 tracking-tight">Add</h2>
+<div class="w-12 h-1 bg-secondary rounded-full mb-6 md:ml-auto"></div>
+<p class="font-body text-xl text-on-surface-variant leading-relaxed">
+                            Just add 6oz of chilled water and a generous handful of crisp ice cubes. Watch as the botanicals awaken, blooming instantly upon contact with hydration.
+                        </p>
+</div>
+</div>
+</article>
+<!-- Step 03: Shake & Sip (Centered Editorial Block) -->
+<article class="relative flex flex-col items-center max-w-5xl mx-auto text-center mt-12 md:mt-24">
+<!-- Large Number Decor -->
+<div class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-[12rem] md:text-[20rem] font-bold text-surface-container-high opacity-30 select-none z-0 tracking-tighter pointer-events-none">03</div>
+<!-- Content Block -->
+<div class="bg-surface-container-lowest/80 backdrop-blur-2xl rounded-[3rem] p-12 md:p-20 border border-outline-variant/30 shadow-[0_30px_60px_rgba(0,54,38,0.08)] relative z-10 w-full overflow-hidden">
+<div class="absolute inset-0 bg-gradient-to-br from-primary/5 to-tertiary/5"></div>
+<div class="relative z-20 max-w-2xl mx-auto">
+<!-- Decorative Zest Chips scattered -->
+<div class="absolute -top-4 -left-8 bg-tertiary-container text-on-tertiary-container px-4 py-2 rounded-lg font-bold text-sm transform -rotate-12">Tart</div>
+<div class="absolute top-12 -right-12 bg-primary-container text-on-primary-container px-4 py-2 rounded-lg font-bold text-sm transform rotate-6">Sparkling</div>
+<h2 class="font-display text-5xl md:text-6xl font-extrabold text-primary mb-8 tracking-tighter">Shake &amp; Sip</h2>
+<p class="font-body text-2xl text-on-surface-variant leading-relaxed mb-12">
+                            Shake or stir vigorously for 10 seconds, garnish, and enjoy the complex symphony of flavors. A masterpiece in your hand, crafted by you.
+                        </p>
+<!-- Primary CTA "Ice Cube" Button -->
+<button class="bg-primary text-on-primary px-10 py-5 rounded-xl font-bold tracking-wide text-lg shadow-[inset_0_1px_0_rgba(255,255,255,0.1)] hover:bg-primary-dim hover:shadow-[0_10px_30px_rgba(0,105,63,0.2)] transition-all duration-300 transform hover:-translate-y-1">
+                            Experience The Collection
+                        </button>
+</div>
+</div>
+<!-- Floating image accent -->
+<div class="absolute -bottom-16 -right-8 md:-right-16 w-48 md:w-64 aspect-[3/4] rounded-2xl overflow-hidden shadow-[0_20px_40px_rgba(0,54,38,0.1)] z-30 transform rotate-6 hidden sm:block border-4 border-surface">
+<img class="w-full h-full object-cover" data-alt="vibrant orange citrus garnish on the rim of a premium cocktail glass, dramatic lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBa-e0nMC1kQCZ6A0KjUSmmtVZHhIul7iCWdYXT6FyBNJRN8D3cdJCKugiA0AdTCvQzloKX137MncG9WJJ8sRWc60JpleHZi9spS7dWQ_t6ojBXuAIiMMrPwptoGKhR5i3K9IJUVNaIj01Nf7v8HleuRhBXXNqJ5JdTdNXWysd21ogjrDl4gML-cACMgKvabqnmixVsLa_a0v9wReGQ6q4AjWO20cjkgE2GES0c22gMyvid1QRigmaeDWI5-lLYFwY3quSCdfWHhXvX"/>
+</div>
+</article>
+</section>
+</main>
+<!-- Footer (Shared Component) -->
+<footer class="w-full py-12 px-8 mt-20 bg-emerald-50 dark:bg-emerald-950 flex flex-col md:flex-row justify-between items-center gap-6 max-w-7xl mx-auto border-t-0 shadow-none">
+<!-- Separation Line (Injected Style Logic) -->
+<div class="bg-emerald-100 dark:bg-emerald-900 h-px w-full mb-8 opacity-20 absolute top-0 left-0"></div>
+<!-- Copyright -->
+<div class="font-['Plus_Jakarta_Sans'] text-xs uppercase tracking-widest text-emerald-900 dark:text-emerald-100 font-black text-lg opacity-80 hover:opacity-100 transition-opacity">
+            © 2024 The Effervescent Editorial. Crafted for the Refined Palate.
+        </div>
+<!-- Links -->
+<div class="flex flex-wrap justify-center gap-6">
+<a class="font-['Plus_Jakarta_Sans'] text-xs uppercase tracking-widest text-emerald-800/60 dark:text-emerald-300/60 hover:text-amber-700 dark:hover:text-amber-500 transition-colors opacity-80 hover:opacity-100" href="#">Journal</a>
+<a class="font-['Plus_Jakarta_Sans'] text-xs uppercase tracking-widest text-emerald-800/60 dark:text-emerald-300/60 hover:text-amber-700 dark:hover:text-amber-500 transition-colors opacity-80 hover:opacity-100" href="#">Stockists</a>
+<a class="font-['Plus_Jakarta_Sans'] text-xs uppercase tracking-widest text-emerald-800/60 dark:text-emerald-300/60 hover:text-amber-700 dark:hover:text-amber-500 transition-colors opacity-80 hover:opacity-100" href="#">Wholesale</a>
+<a class="font-['Plus_Jakarta_Sans'] text-xs uppercase tracking-widest text-emerald-800/60 dark:text-emerald-300/60 hover:text-amber-700 dark:hover:text-amber-500 transition-colors opacity-80 hover:opacity-100" href="#">Privacy Policy</a>
+</div>
+</footer>
+</body></html>
