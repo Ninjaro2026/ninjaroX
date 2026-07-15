@@ -15,6 +15,7 @@ export interface Product {
   category?: string;
   showInStorefront?: boolean;
   priority?: number;
+  isBestSeller?: boolean;
 }
 
 export interface OrderItem {
@@ -50,14 +51,14 @@ export interface CartItem {
 }
 
 export const DEFAULT_PRODUCTS: Product[] = [
-  // 20gm Pouch (5pc Jar) section
+  // 20gm Pouch (5pc) section
   {
     id: 'prod-1',
     name: 'Blue Lagoon (20gm Pouch)',
     description: 'Natural blueberry extracts, sparkling spring water, and a hint of wild lavender. Pack of 5 pouches.',
     price: 125,
     mrp: 150,
-    category: '20gm Pouch (5pc Jar)',
+    category: '20gm Pouch (5pc)',
     showInStorefront: true,
     priority: 1,
     imageSrc: '/blulagoonbox.png',
@@ -65,7 +66,8 @@ export const DEFAULT_PRODUCTS: Product[] = [
     topBgColor: 'bg-[#00485c]',
     bottomBgColor: 'bg-[#006884]',
     buttonTextColor: 'text-[#006884]',
-    stock: 120
+    stock: 120,
+    isBestSeller: true
   },
   {
     id: 'prod-2',
@@ -73,7 +75,7 @@ export const DEFAULT_PRODUCTS: Product[] = [
     description: 'Fresh garden mint, hand-squeezed lime, and artisanal agave nectar syrup. Pack of 5 pouches.',
     price: 125,
     mrp: 150,
-    category: '20gm Pouch (5pc Jar)',
+    category: '20gm Pouch (5pc)',
     showInStorefront: true,
     priority: 2,
     imageSrc: '/virginmojitobox.png',
@@ -89,7 +91,7 @@ export const DEFAULT_PRODUCTS: Product[] = [
     description: 'Real citrus pulp, unripe mango nectar, and a whisper of Himalayan salt. Pack of 5 pouches.',
     price: 125,
     mrp: 150,
-    category: '20gm Pouch (5pc Jar)',
+    category: '20gm Pouch (5pc)',
     showInStorefront: true,
     priority: 3,
     imageSrc: '/greentangbox.png',
@@ -105,7 +107,7 @@ export const DEFAULT_PRODUCTS: Product[] = [
     description: 'Blood orange concentrate, cold-pressed ginger, and sparkling tangerine water. Pack of 5 pouches.',
     price: 125,
     mrp: 150,
-    category: '20gm Pouch (5pc Jar)',
+    category: '20gm Pouch (5pc)',
     showInStorefront: true,
     priority: 4,
     imageSrc: '/orangetangbox.png',
@@ -121,15 +123,16 @@ export const DEFAULT_PRODUCTS: Product[] = [
     description: 'Perfect 4-in-1 pack of 20gm mocktail premixes. Try all flavors in one single box!',
     price: 399,
     mrp: 600,
-    category: '20gm Pouch (5pc Jar)',
+    category: 'Combos',
     showInStorefront: true,
     priority: 0,
-    imageSrc: '/blulagoonbox.png',
+    imageSrc: '/combo1.png',
     imageAlt: '4in One Combo box',
     topBgColor: 'bg-[#00485c]',
     bottomBgColor: 'bg-[#e87903]',
     buttonTextColor: 'text-[#006884]',
     stock: 0,
+    isBestSeller: true,
     isCombo: true,
     comboItems: [
       { productId: 'prod-1', quantity: 1 },
@@ -148,12 +151,13 @@ export const DEFAULT_PRODUCTS: Product[] = [
     category: 'Jar 500gm',
     showInStorefront: true,
     priority: 5,
-    imageSrc: '/blulagoonbox.png',
+    imageSrc: '/bluelagoonjar.png',
     imageAlt: 'blue lagoon 500g jar',
     topBgColor: 'bg-[#00485c]',
     bottomBgColor: 'bg-[#006884]',
     buttonTextColor: 'text-[#006884]',
-    stock: 50
+    stock: 50,
+    isBestSeller: true
   },
   {
     id: 'prod-6',
@@ -164,7 +168,7 @@ export const DEFAULT_PRODUCTS: Product[] = [
     category: 'Jar 500gm',
     showInStorefront: true,
     priority: 6,
-    imageSrc: '/virginmojitobox.png',
+    imageSrc: '/virginmojitojar.png',
     imageAlt: 'virgin mojito 500g jar',
     topBgColor: 'bg-[#1b8858]',
     bottomBgColor: 'bg-[#25b07a]',
@@ -180,7 +184,7 @@ export const DEFAULT_PRODUCTS: Product[] = [
     category: 'Jar 500gm',
     showInStorefront: true,
     priority: 7,
-    imageSrc: '/greentangbox.png',
+    imageSrc: '/greenmangojar.png',
     imageAlt: 'green mango 500g jar',
     topBgColor: 'bg-[#004930]',
     bottomBgColor: 'bg-[#00704a]',
@@ -196,7 +200,7 @@ export const DEFAULT_PRODUCTS: Product[] = [
     category: 'Jar 500gm',
     showInStorefront: true,
     priority: 8,
-    imageSrc: '/orangetangbox.png',
+    imageSrc: '/orangetangjar.png',
     imageAlt: 'orange tang 500g jar',
     topBgColor: 'bg-[#ff9500]',
     bottomBgColor: 'bg-[#e87903]',
@@ -304,7 +308,7 @@ export function decrementProductStock(productId: string, quantity: number, allPr
 export function getStoredProducts(): Product[] {
   if (typeof window === 'undefined') return DEFAULT_PRODUCTS;
   const stored = localStorage.getItem('nz_products');
-  if (!stored || !stored.includes('"category"')) {
+  if (!stored || !stored.includes('"category"') || !stored.includes('bluelagoonjar.png') || !stored.includes('combo1.png') || stored.includes('20gm Pouch (5pc Jar)')) {
     localStorage.setItem('nz_products', JSON.stringify(DEFAULT_PRODUCTS));
     return DEFAULT_PRODUCTS;
   }

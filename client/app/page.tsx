@@ -29,10 +29,13 @@ export default function Home() {
   const [currentReview, setCurrentReview] = useState(0);
   const [products, setProducts] = useState<Product[]>([]);
   const [isMounted, setIsMounted] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
+  const [isShopDropdownOpen, setIsShopDropdownOpen] = useState(false);
 
   // Dynamic categories resolver
   const visibleProducts = (products.length > 0 ? products : DEFAULT_PRODUCTS).filter(p => p.showInStorefront !== false);
-  const categoryOrder = ["20gm Pouch (5pc Jar)", "Jar 500gm"];
+  const categoryOrder = ["20gm Pouch (5pc)", "Jar 500gm", "Combos"];
   const activeCategories = Array.from(new Set(visibleProducts.map(p => p.category || 'Uncategorized')));
   const sortedCategories = activeCategories.sort((a, b) => {
     const idxA = categoryOrder.indexOf(a);
@@ -49,8 +52,7 @@ export default function Home() {
       .sort((a, b) => (a.priority ?? 999) - (b.priority ?? 999));
   };
 
-  const text1Ref = useRef<HTMLHeadingElement>(null);
-  const text2Ref = useRef<HTMLHeadingElement>(null);
+  // Removed unused refs
 
   useEffect(() => {
     setIsMounted(true);
@@ -135,142 +137,266 @@ export default function Home() {
   const totalItems = cartItems.reduce((acc, item) => acc + item.quantity, 0);
 
   useEffect(() => {
-    let ticking = false;
-
     const handleScroll = () => {
-      if (!ticking) {
-        window.requestAnimationFrame(() => {
-          const scrollY = window.scrollY;
-          
-          if (text1Ref.current) {
-            text1Ref.current.style.opacity = String(Math.max(0, 1 - scrollY / 300));
-            text1Ref.current.style.transform = `translateY(${-Math.min(scrollY, 300) * 0.5}px)`;
-          }
-
-          if (text2Ref.current) {
-            text2Ref.current.style.opacity = String(scrollY < 300 ? 0 : Math.min(1, (scrollY - 300) / 300));
-            text2Ref.current.style.transform = `translateY(${scrollY < 300 ? 100 : Math.max(0, 100 - ((scrollY - 300) / 300) * 100)}px)`;
-          }
-          
-          ticking = false;
-        });
-        ticking = true;
-      }
+      setIsScrolled(window.scrollY > 50);
     };
     
     window.addEventListener("scroll", handleScroll, { passive: true });
-    // Initialize position
     handleScroll();
     
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
+  // Carousels removed
+
   return (
     <>
-      <div className="fixed top-6 right-6 md:top-8 md:right-8 z-50 flex items-center gap-4">
-        <button onClick={() => setIsCartOpen(!isCartOpen)} className="glass-panel bg-white/40 backdrop-blur-2xl text-emerald-950 px-3.5 py-3.5 rounded-full font-extrabold tracking-tight shadow-2xl hover:bg-white/60 active:scale-95 transform transition-all duration-300 flex items-center gap-2 border border-white/50 relative">
-          <span className="material-symbols-outlined text-xl" data-icon="shopping_bag">shopping_bag</span>
-          {totalItems > 0 && (
-            <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold w-5 h-5 flex items-center justify-center rounded-full">{totalItems}</span>
-          )}
+      {/* Top Promotional Announcement Bar */}
+      <div className="bg-[#e55353] text-white text-[10px] md:text-xs font-black py-2.5 px-4 text-center tracking-wider flex items-center justify-center gap-1.5 relative z-50 animate-fade-in border-b border-white/5">
+        <span>Flat ₹75 Cashback on your 1st MobiKwik UPI payment! (Min. order ₹399*)</span>
+        <button 
+          onClick={() => document.getElementById('storefront')?.scrollIntoView({ behavior: 'smooth' })}
+          className="text-[#ffeb3b] underline font-black hover:scale-105 active:scale-95 transition-transform ml-1 uppercase whitespace-nowrap"
+        >
+          Shop Now
         </button>
-        <div className="relative">
-          <button 
-            onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
-            className="glass-panel bg-white/40 backdrop-blur-2xl text-emerald-950 px-3.5 py-3.5 rounded-full font-extrabold tracking-tight shadow-2xl hover:bg-white/60 active:scale-95 transform transition-all duration-300 flex items-center gap-2 border border-white/50"
-          >
-            <span className="material-symbols-outlined text-xl" data-icon="person">person</span>
-          </button>
+      </div>
 
-          {isProfileMenuOpen && (
-            <div className="absolute right-0 mt-4 w-44 bg-white rounded-3xl shadow-2xl border border-emerald-900/5 overflow-hidden py-1.5 animate-in fade-in slide-in-from-top-2 duration-200 z-100">
-              <Link href="/profile" className="flex items-center gap-3 px-4 py-2.5 hover:bg-emerald-50 transition-colors group">
-                <span className="material-symbols-outlined text-[18px] text-emerald-900/40 group-hover:text-emerald-900 transition-colors">account_circle</span>
-                <span className="font-bold text-[13px] tracking-tight text-emerald-950">Profile</span>
-              </Link>
-              <Link href="/track-order" className="flex items-center gap-3 px-4 py-2.5 hover:bg-emerald-50 transition-colors group text-left">
-                <span className="material-symbols-outlined text-[18px] text-emerald-900/40 group-hover:text-emerald-900 transition-colors">local_shipping</span>
-                <span className="font-bold text-[13px] tracking-tight text-emerald-950">Track Order</span>
-              </Link>
+      {/* Sticky Navigation Header */}
+      <header className="sticky top-0 w-full z-40 bg-white border-b border-zinc-200 shadow-xs transition-all duration-300 font-poppins">
+        {/* Row 1: Logo, Search, and Actions */}
+        <div className="max-w-screen-2xl mx-auto px-4 sm:px-8 lg:px-12 h-14 md:h-20 flex items-center justify-between gap-4">
+          
+          {/* Left Column: Hamburger (Mobile) / Search Bar (Desktop) */}
+          <div className="flex-1 flex justify-start items-center">
+            {/* Hamburger Trigger (Mobile only) */}
+            <button 
+              onClick={() => setIsMobileMenuOpen(true)} 
+              className="lg:hidden text-zinc-800 w-9 h-9 rounded-full hover:bg-zinc-100 flex items-center justify-center transition-colors shrink-0"
+              aria-label="Open menu"
+            >
+              <span className="material-symbols-outlined text-2xl">menu</span>
+            </button>
 
-              <div className="mx-4 my-1 h-px bg-emerald-900/5"></div>
-              <button className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-red-50 transition-colors group text-left">
-                <span className="material-symbols-outlined text-[18px] text-red-600/40 group-hover:text-red-600 transition-colors">logout</span>
-                <span className="font-bold text-[13px] tracking-tight text-red-600">Logout</span>
-              </button>
+            {/* Desktop Search Bar */}
+            <div className="hidden lg:flex relative items-center w-60 xl:w-72">
+              <span className="material-symbols-outlined absolute left-3 text-zinc-400 text-lg">search</span>
+              <input 
+                type="text" 
+                placeholder="Search for products..." 
+                className="w-full bg-zinc-50 border border-zinc-200 rounded-lg py-2 pl-10 pr-4 text-xs font-semibold text-zinc-800 placeholder-zinc-400 focus:outline-none focus:border-zinc-400 focus:bg-white transition-all shadow-inner" 
+              />
             </div>
-          )}
+          </div>
+
+          {/* Center Column: Logo */}
+          <div className="flex-initial flex justify-center items-center">
+            <img 
+              src="/nin.png" 
+              alt="Ninjaro Logo" 
+              onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+              className="h-8 md:h-12 w-auto object-contain cursor-pointer select-none" 
+            />
+          </div>
+
+          {/* Right Column: Actions */}
+          <div className="flex-1 flex justify-end items-center gap-1.5 md:gap-3">
+            {/* Profile Dropdown */}
+            <div className="relative">
+              <button 
+                onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
+                className="w-9 h-9 md:w-10 md:h-10 rounded-full flex items-center justify-center text-zinc-800 transition-colors hover:bg-zinc-100 shrink-0"
+                aria-label="Profile dropdown"
+              >
+                <span className="material-symbols-outlined text-lg md:text-xl">person</span>
+              </button>
+
+              {isProfileMenuOpen && (
+                <div className="absolute right-0 mt-3 w-48 bg-white rounded-2xl shadow-xl border border-zinc-100 py-1.5 z-50 animate-in fade-in slide-in-from-top-2 duration-200">
+                  <Link href="/profile" className="flex items-center gap-3 px-4 py-2.5 hover:bg-zinc-50 text-zinc-800">
+                    <span className="material-symbols-outlined text-lg text-zinc-400">account_circle</span>
+                    <span className="font-bold text-xs tracking-tight">Profile</span>
+                  </Link>
+                  <Link href="/track-order" className="flex items-center gap-3 px-4 py-2.5 hover:bg-zinc-50 text-zinc-800">
+                    <span className="material-symbols-outlined text-lg text-zinc-400">local_shipping</span>
+                    <span className="font-bold text-xs tracking-tight">Track Order</span>
+                  </Link>
+                  <div className="mx-4 my-1 h-px bg-zinc-100"></div>
+                  <button className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-red-50 text-red-600 text-left">
+                    <span className="material-symbols-outlined text-lg text-red-600/40">logout</span>
+                    <span className="font-bold text-xs tracking-tight">Logout</span>
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Cartbag count Trigger */}
+            <button 
+              onClick={() => setIsCartOpen(true)} 
+              className="w-9 h-9 md:w-10 md:h-10 rounded-full bg-zinc-50 border border-zinc-200/80 hover:bg-zinc-100 text-zinc-800 flex items-center justify-center relative hover:scale-105 active:scale-95 transition-all shadow-xs shrink-0"
+              aria-label="Open cart"
+            >
+              <span className="material-symbols-outlined text-lg md:text-[20px]">shopping_bag</span>
+              {isMounted && totalItems > 0 && (
+                <span className="absolute -top-1 -right-1 bg-black text-white text-[8px] md:text-[9px] font-black w-4.5 h-4.5 flex items-center justify-center rounded-full border border-white shadow-sm">
+                  {totalItems}
+                </span>
+              )}
+            </button>
+          </div>
+        </div>
+
+        {/* Row 2: Horizontal Navigation Bar (Desktop only) */}
+        <div className="hidden lg:flex justify-center border-t border-zinc-100 py-3.5 w-full bg-white">
+          <nav className="flex items-center gap-8 text-xs font-black tracking-widest uppercase text-zinc-700">
+            <button 
+              onClick={() => document.getElementById('20gm-pouch-5pc')?.scrollIntoView({ behavior: 'smooth' })}
+              className="hover:text-black hover:border-b-2 hover:border-black pb-1 -mb-1 transition-colors cursor-pointer"
+            >
+              Pouches
+            </button>
+            <button 
+              onClick={() => document.getElementById('jar-500gm')?.scrollIntoView({ behavior: 'smooth' })}
+              className="hover:text-black hover:border-b-2 hover:border-black pb-1 -mb-1 transition-colors cursor-pointer"
+            >
+              Jars
+            </button>
+            <button 
+              onClick={() => document.getElementById('combos')?.scrollIntoView({ behavior: 'smooth' })}
+              className="hover:text-black hover:border-b-2 hover:border-black pb-1 -mb-1 transition-colors cursor-pointer"
+            >
+              Combos
+            </button>
+            <button 
+              onClick={() => document.getElementById('ritual-section')?.scrollIntoView({ behavior: 'smooth' })}
+              className="hover:text-black hover:border-b-2 hover:border-black pb-1 -mb-1 transition-colors cursor-pointer"
+            >
+              The Ritual
+            </button>
+            <button 
+              onClick={() => document.getElementById('reviews')?.scrollIntoView({ behavior: 'smooth' })}
+              className="hover:text-black hover:border-b-2 hover:border-black pb-1 -mb-1 transition-colors cursor-pointer"
+            >
+              Reviews
+            </button>
+          </nav>
+        </div>
+      </header>
+
+      {/* Mobile Menu Drawer Overlay */}
+      {isMobileMenuOpen && (
+        <div 
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 transition-opacity duration-300 lg:hidden"
+          onClick={() => setIsMobileMenuOpen(false)}
+        />
+      )}
+
+      {/* Mobile Menu Drawer Panel */}
+      <div 
+        className={`fixed top-0 left-0 h-full w-72 bg-white/95 backdrop-blur-3xl z-55 shadow-2xl transform transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] lg:hidden flex flex-col font-poppins border-r border-emerald-900/10 ${
+          isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"
+        }`}
+      >
+        <div className="p-6 flex items-center justify-between border-b border-emerald-900/10 bg-emerald-50/50">
+          <img src="/nin.png" alt="Ninjaro Logo" className="h-9 w-auto object-contain" />
+          <button 
+            onClick={() => setIsMobileMenuOpen(false)}
+            className="w-9 h-9 rounded-full bg-emerald-900/5 flex items-center justify-center text-emerald-950 hover:bg-emerald-900 hover:text-white transition-all"
+          >
+            <span className="material-symbols-outlined text-lg">close</span>
+          </button>
+        </div>
+        <div className="grow p-6 flex flex-col gap-6 text-sm font-black uppercase tracking-wider text-emerald-950">
+          <button 
+            onClick={() => {
+              setIsMobileMenuOpen(false);
+              document.getElementById('20gm-pouch-5pc')?.scrollIntoView({ behavior: 'smooth' });
+            }} 
+            className="text-left py-2 border-b border-emerald-900/5 hover:text-emerald-600 transition-colors"
+          >
+            Pouches
+          </button>
+          <button 
+            onClick={() => {
+              setIsMobileMenuOpen(false);
+              document.getElementById('jar-500gm')?.scrollIntoView({ behavior: 'smooth' });
+            }} 
+            className="text-left py-2 border-b border-emerald-900/5 hover:text-emerald-600 transition-colors"
+          >
+            Jars
+          </button>
+          <button 
+            onClick={() => {
+              setIsMobileMenuOpen(false);
+              document.getElementById('combos')?.scrollIntoView({ behavior: 'smooth' });
+            }} 
+            className="text-left py-2 border-b border-emerald-900/5 hover:text-emerald-600 transition-colors"
+          >
+            Combos
+          </button>
+          <button 
+            onClick={() => {
+              setIsMobileMenuOpen(false);
+              document.getElementById('ritual-section')?.scrollIntoView({ behavior: 'smooth' });
+            }} 
+            className="text-left py-2 border-b border-emerald-900/5 hover:text-emerald-600 transition-colors"
+          >
+            The Ritual
+          </button>
+          <button 
+            onClick={() => {
+              setIsMobileMenuOpen(false);
+              document.getElementById('reviews')?.scrollIntoView({ behavior: 'smooth' });
+            }} 
+            className="text-left py-2 border-b border-emerald-900/5 hover:text-emerald-600 transition-colors"
+          >
+            Reviews
+          </button>
+        </div>
+        <div className="p-6 border-t border-emerald-900/10 bg-emerald-50/50 text-center text-xs font-bold text-emerald-900/50">
+          © 2026 Ninjaro✧
         </div>
       </div>
-<main>
-{/**/}
-<section className="relative h-[200vh] w-full">
-  <div className="font-limelight sticky top-0 h-[120vh] w-full flex flex-col justify-start items-center pt-10 px-6 md:px-12 overflow-hidden bg-cover bg-center bg-no-repeat" style={{ backgroundImage: "url('/hero.png')" }}>
-    
-    <div className="relative w-full h-[300px] md:h-[400px] flex justify-center items-start mt-10 z-10">
-      <h1 
-        ref={text1Ref}
-        className="absolute top-0 text-6xl md:text-8xl lg:text-9xl font-black text-white text-center tracking-tighter drop-shadow-2xl uppercase"
-        style={{
-          transition: 'opacity 0.1s ease-out, transform 0.1s ease-out'
-        }}
-      >
-        Mocktail Premix Powder
-      </h1>
 
-      <h1 
-        ref={text2Ref}
-        className="absolute top-15 text-6xl md:text-8xl lg:text-9xl font-black text-white text-center tracking-tighter drop-shadow-2xl uppercase"
-        style={{
-          opacity: 0,
-          transform: 'translateY(100px)',
-          transition: 'opacity 0.1s ease-out, transform 0.1s ease-out'
-        }}
-      >
-        Ninjaro✧
-      </h1>
-    </div>
-
-    <button 
-      onClick={() => {
-        const firstCatId = sortedCategories[0]?.replace(/[^a-zA-Z0-9]+/g, '-').toLowerCase();
-        if (firstCatId) {
-          document.getElementById(firstCatId)?.scrollIntoView({ behavior: 'smooth' });
-        }
-      }}
-      className="font-poppins bg-gray-900 text-white px-8 py-3 rounded-full text-base font-bold tracking-widest shadow-lg hover:bg-gray-800 active:scale-95 transform transition-all duration-300 z-10 -mt-10 md:-mt-30 md:-mr-10"
-    >
-      Buy Now
-    </button>
+      <main>
+{/* Storefront Left-aligned Promo Tag & Entrance Anchor */}
+<div id="storefront" className="max-w-screen-2xl mx-auto px-4 sm:px-6 md:px-12 pt-4 pb-2 bg-white animate-fade-in">
+  <div className="inline-flex bg-neutral-950 text-white text-[9px] sm:text-xs font-black uppercase px-4 py-2 rounded-sm shadow-xs tracking-wider items-center gap-1.5 select-none">
+    <span>🎁 Free Shipping Order Above ₹249 & Apply 5% Discount on Checkout</span>
   </div>
-</section>
-{/**/}
+</div>
 {sortedCategories.map((category, catIdx) => {
   const catProducts = getProductsByCategory(category);
   if (catProducts.length === 0) return null;
-  const sectionId = category.replace(/[^a-zA-Z0-9]+/g, '-').toLowerCase();
+  const sectionId = category.replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-+|-+$/g, '').toLowerCase();
   return (
     <section 
       key={category} 
-      className={`py-24 px-6 md:px-12 border-t border-emerald-900/5 font-poppins ${catIdx % 2 === 0 ? 'bg-white' : 'bg-[#f4fdf8]'}`} 
+      className={`pb-8 md:pb-12 px-4 sm:px-6 md:px-12 font-poppins ${catIdx % 2 === 0 ? 'bg-white' : 'bg-[#f4fdf8]'} ${
+        catIdx === 0 
+          ? 'pt-2 md:pt-3 border-t-0' 
+          : 'pt-6 md:pt-8 border-t border-emerald-900/5'
+      }`} 
       id={sectionId}
     >
       <div className="max-w-screen-2xl mx-auto">
-        <div className="flex flex-col md:flex-row justify-between items-end mb-16 gap-6">
-          <div className="space-y-4">
-            <h2 className="font-limelight text-5xl md:text-7xl uppercase text-emerald-950 tracking-tighter leading-none">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end mb-5 md:mb-8 gap-4 w-full">
+          <div className="space-y-1.5 md:space-y-2">
+            <h2 className="font-limelight text-xl sm:text-3xl md:text-5xl uppercase text-emerald-950 tracking-tighter leading-none">
               {category}
             </h2>
-            <p className="text-emerald-900/70 text-lg md:text-xl font-medium max-w-xl">
-              {category === "20gm Pouch (5pc Jar)" 
-                ? "Premium single-serving pouches and combo packs designed for quick mixing." 
+            <p className="text-emerald-900/70 text-xs sm:text-sm md:text-base font-medium max-w-xl">
+              {category === "20gm Pouch (5pc)" 
+                ? "Premium single-serving pouches designed for quick mixing." 
                 : category === "Jar 500gm"
                 ? "Bulk jars designed for heavy mixers, bars, and premium sharing." 
+                : category === "Combos"
+                ? "Try all mocktail flavors in our specially curated combo boxes."
                 : "Curated selections to shift your state."}
             </p>
           </div>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
           {catProducts.map((product) => {
             const priceStr = `₹${product.price}/-`;
             const mrpStr = product.mrp ? `₹${product.mrp}/-` : undefined;
@@ -278,6 +404,7 @@ export default function Home() {
             return (
               <ProductCard
                 key={product.id}
+                id={product.id}
                 name={product.name}
                 description={product.description}
                 price={priceStr}
@@ -289,6 +416,7 @@ export default function Home() {
                 quantity={getItemQuantity(product.name)}
                 stock={stockVal}
                 mrp={mrpStr}
+                isBestSeller={product.isBestSeller}
                 onAddToCart={() => addToCart({ name: product.name, price: priceStr, img: product.imageSrc })}
                 onUpdateQuantity={(delta) => updateQuantity(product.name, delta)}
               />
@@ -300,9 +428,9 @@ export default function Home() {
   );
 })}
 
-<section className="py-32 px-6 md:px-12 bg-white relative overflow-hidden font-poppins">
+<section id="ritual-section" className="py-8 md:py-16 px-6 md:px-12 bg-white relative overflow-hidden font-poppins">
   {/* Header */}
-  <header className="max-w-4xl mx-auto text-center mb-32 relative">
+  <header className="max-w-4xl mx-auto text-center mb-10 md:mb-16 relative">
     <div className="absolute inset-0 bg-emerald-50/80 backdrop-blur-3xl rounded-[3rem] -z-10 transform -rotate-2 scale-105"></div>
     <h2 className="font-limelight text-5xl md:text-7xl tracking-tighter text-emerald-950 mb-6 leading-none uppercase">
       The 30-Second <br/>
@@ -313,15 +441,15 @@ export default function Home() {
     </p>
   </header>
 
-  <div className="max-w-screen-xl mx-auto relative space-y-32 md:space-y-48">
+  <div className="max-w-7xl mx-auto relative space-y-12 md:space-y-24">
     {/* Step 01 */}
     <article className="relative flex flex-col md:flex-row items-center gap-12 lg:gap-24">
       <div className="absolute -left-8 md:-left-24 top-0 md:-top-16 text-[8rem] md:text-[14rem] font-black text-emerald-50 select-none z-0 tracking-tighter">01</div>
       
       <div className="w-full md:w-5/12 relative z-10 group">
-        <div className="aspect-[4/5] rounded-[2rem] overflow-hidden shadow-2xl relative">
+        <div className="aspect-4/5 rounded-4xl overflow-hidden shadow-2xl relative">
           <img className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" alt="Preparation" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCy4Fl0CLLUldmlFqc9t_p8x9GNpV3njZbRfd_ufqjfGuCrzOLvSuNx7xAc6sAFmiNAvMWX2EZz6Glug9ObwPJq90AAMt1PhGeQTSlB2AFQEWQcGqzBJP14_jMYzGufVTA65Qpac7Z0Wen8tnI_O1lS8clXU3rRAYkjUEuuWX7Jr0bRQ_WkWsMetuyfrZ_WkoJ9tOQSSeNe4RBo93xcmDQKbZfRpH1zHXfSDPTIZZuDv1rotQsCVWJH1neMWDgi5-SKn9JR1Nv_UGjR" />
-          <div className="absolute inset-0 bg-gradient-to-tr from-emerald-900/20 to-transparent mix-blend-overlay"></div>
+          <div className="absolute inset-0 bg-linear-to-tr from-emerald-900/20 to-transparent mix-blend-overlay"></div>
         </div>
         <div className="absolute -bottom-6 -right-6 bg-emerald-950 text-emerald-50 px-6 py-3 rounded-xl font-bold tracking-widest uppercase shadow-xl transform rotate-3 z-20 text-sm">
           Preparation
@@ -345,9 +473,9 @@ export default function Home() {
       <div className="absolute -right-8 md:-right-24 top-0 md:-top-16 text-[8rem] md:text-[14rem] font-black text-emerald-50 select-none z-0 tracking-tighter">02</div>
       
       <div className="w-full md:w-6/12 relative z-10 group">
-        <div className="aspect-square md:aspect-[4/3] rounded-[2rem] overflow-hidden shadow-2xl relative ml-auto">
+        <div className="aspect-square md:aspect-4/3 rounded-4xl overflow-hidden shadow-2xl relative ml-auto">
           <img className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" alt="Hydration" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCFoewPJKDCpdx1WIvxotYHlIN154t4zIqTWaUVceSDrI6wTYHMQH5Wy0Oo0a98TGAk-5rSNZJGCGInzsZ472nsvHJJVLForPFz2klYNVfmlcLqtu1fB-BNm1zFlRVwWL0g3M3UqGHoser9ESYL8dBtZvBGu2Rhu97TSBw7GeYD6Zq_smDBPWJP_cpiZG_7tRWwgc30ewa65Vbvc7Fpzwt_pqguW80QdAp4klRLZ-qae5A3Csu6DiuqnYejpqWl5CAMyrGADOyctP1I" />
-          <div className="absolute inset-0 bg-gradient-to-bl from-white/20 to-transparent"></div>
+          <div className="absolute inset-0 bg-linear-to-bl from-white/20 to-transparent"></div>
         </div>
         <div className="absolute -top-6 -left-6 bg-teal-800 text-teal-50 px-6 py-3 rounded-xl font-bold tracking-widest uppercase shadow-xl transform -rotate-2 z-20 text-sm">
           Hydration
@@ -366,11 +494,11 @@ export default function Home() {
     </article>
 
     {/* Step 03 */}
-    <article className="relative flex flex-col items-center max-w-5xl mx-auto text-center mt-12 md:mt-24">
+    <article className="relative flex flex-col items-center max-w-5xl mx-auto text-center mt-6 md:mt-24">
       <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-[12rem] md:text-[20rem] font-black text-emerald-50 select-none z-0 tracking-tighter pointer-events-none">03</div>
       
       <div className="glass-panel bg-white/80 backdrop-blur-3xl rounded-[4rem] p-12 md:p-20 border border-emerald-900/10 shadow-2xl relative z-10 w-full overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-emerald-400/5 to-teal-400/10"></div>
+        <div className="absolute inset-0 bg-linear-to-br from-emerald-400/5 to-teal-400/10"></div>
         <div className="relative z-20 max-w-2xl mx-auto">
           <div className="absolute -top-4 -left-8 bg-amber-400 text-amber-950 px-4 py-2 rounded-lg font-bold text-xs uppercase tracking-widest transform -rotate-12 shadow-md">Tart</div>
           <div className="absolute top-12 -right-12 bg-emerald-400 text-emerald-950 px-4 py-2 rounded-lg font-bold text-xs uppercase tracking-widest transform rotate-6 shadow-md">Sparkling</div>
@@ -392,19 +520,19 @@ export default function Home() {
         </div>
       </div>
 
-      <div className="absolute -bottom-16 -right-8 md:-right-16 w-48 md:w-64 aspect-[3/4] rounded-3xl overflow-hidden shadow-2xl z-30 transform rotate-6 hidden sm:block border-8 border-white">
+      <div className="absolute -bottom-16 -right-8 md:-right-16 w-48 md:w-64 aspect-3/4 rounded-3xl overflow-hidden shadow-2xl z-30 transform rotate-6 hidden sm:block border-8 border-white">
         <img className="w-full h-full object-cover" alt="Garnish" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBa-e0nMC1kQCZ6A0KjUSmmtVZHhIul7iCWdYXT6FyBNJRN8D3cdJCKugiA0AdTCvQzloKX137MncG9WJJ8sRWc60JpleHZi9spS7dWQ_t6ojBXuAIiMMrPwptoGKhR5i3K9IJUVNaIj01Nf7v8HleuRhBXXNqJ5JdTdNXWysd21ogjrDl4gML-cACMgKvabqnmixVsLa_a0v9wReGQ6q4AjWO20cjkgE2GES0c22gMyvid1QRigmaeDWI5-lLYFwY3quSCdfWHhXvX" />
       </div>
     </article>
   </div>
 </section>
-<section className="py-24 px-6 md:px-12 bg-linear-to-br from-[#f0fdf6] to-[#e0f2fe] relative overflow-hidden" id="reviews">
+<section className="py-8 md:py-16 px-6 md:px-12 bg-linear-to-br from-[#f0fdf6] to-[#e0f2fe] relative overflow-hidden" id="reviews">
   {/* Background decorative elements */}
   <div className="absolute top-1/2 left-0 -translate-y-1/2 w-96 h-96 bg-emerald-300/40 blur-[100px] rounded-full pointer-events-none"></div>
   <div className="absolute top-1/2 right-0 -translate-y-1/2 w-96 h-96 bg-indigo-300/30 blur-[100px] rounded-full pointer-events-none"></div>
 
   <div className="max-w-7xl mx-auto flex flex-col items-center relative z-10">
-    <div className="text-amber-400 mb-12 flex gap-2 drop-shadow-[0_0_15px_rgba(251,191,36,0.4)]">
+    <div className="text-amber-400 mb-6 md:mb-12 flex gap-2 drop-shadow-[0_0_15px_rgba(251,191,36,0.4)]">
       {[1, 2, 3, 4, 5].map(star => <span key={star} className="material-symbols-outlined text-3xl" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>)}
     </div>
     
@@ -428,7 +556,7 @@ export default function Home() {
       ))}
     </div>
 
-    <div className="flex items-center gap-6 mt-16">
+    <div className="flex items-center gap-6 mt-8 md:mt-16">
       <button 
         onClick={() => setCurrentReview(prev => (prev === 0 ? REVIEWS.length - 1 : prev - 1))}
         className="w-14 h-14 rounded-full border border-emerald-900/10 flex items-center justify-center text-emerald-950 hover:bg-emerald-900/5 hover:border-emerald-900/20 transition-all active:scale-95 bg-white/50 backdrop-blur-md shadow-sm"
@@ -455,7 +583,7 @@ export default function Home() {
 </section>
 </main>
 {/**/}
-<footer className="relative bg-emerald-950 pt-32 pb-12 overflow-hidden border-t-8 border-emerald-500 font-poppins">
+<footer className="relative bg-emerald-950 pt-12 md:pt-20 pb-12 overflow-hidden border-t-8 border-emerald-500 font-poppins">
   {/* Abstract Liquid background effects */}
   <div className="absolute top-0 left-1/4 w-96 h-96 bg-emerald-500/20 rounded-full mix-blend-screen filter blur-[100px] opacity-50"></div>
   <div className="absolute bottom-0 right-1/4 w-[500px] h-[500px] bg-teal-500/20 rounded-full mix-blend-screen filter blur-[120px] opacity-50"></div>
@@ -543,7 +671,12 @@ export default function Home() {
         </div>
 
         <div className="grow p-6 overflow-y-auto space-y-4">
-          {cartItems.length === 0 ? (
+          {!isMounted ? (
+            <div className="h-full flex flex-col items-center justify-center text-emerald-900/30 space-y-4">
+              <span className="material-symbols-outlined text-6xl opacity-50 animate-pulse" data-icon="shopping_basket">shopping_basket</span>
+              <p className="text-lg font-bold">Loading Cart...</p>
+            </div>
+          ) : cartItems.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center text-emerald-900/30 space-y-4">
               <span className="material-symbols-outlined text-6xl opacity-50" data-icon="shopping_basket">shopping_basket</span>
               <p className="text-lg font-bold">Your cart is empty</p>
@@ -572,11 +705,16 @@ export default function Home() {
           )}
         </div>
 
-        {cartItems.length > 0 && (
+        {isMounted && cartItems.length > 0 && (
           <div className="p-6 border-t border-emerald-900/10 bg-emerald-50/50 space-y-4">
             <div className="flex justify-between items-center text-emerald-900/70">
               <span className="font-medium">Subtotal</span>
-              <span className="font-black text-emerald-950 text-xl tracking-tight">₹{cartItems.reduce((acc, item) => acc + (666 * item.quantity), 0)}</span>
+              <span className="font-black text-emerald-950 text-xl tracking-tight">
+                ₹{cartItems.reduce((acc, item) => {
+                  const priceNum = parseInt(item.price.replace(/[^\d]/g, '')) || 0;
+                  return acc + (priceNum * item.quantity);
+                }, 0)}/-
+              </span>
             </div>
             <Link href="/checkout" className="block w-full py-4 rounded-2xl bg-emerald-900 text-white font-black tracking-widest uppercase text-center hover:bg-emerald-800 active:scale-[0.98] transition-all shadow-xl shadow-emerald-900/20">
               Proceed to Checkout
@@ -584,6 +722,8 @@ export default function Home() {
           </div>
         )}
       </div>
+
+      {/* Grid Modal Overlay removed */}
     </>
   );
 }
