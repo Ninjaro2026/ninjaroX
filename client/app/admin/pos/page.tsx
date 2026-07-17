@@ -1,6 +1,7 @@
 "use client";
 import React, { useState, useEffect } from 'react';
 import { getStoredProducts, saveStoredProducts, getStoredOrders, saveStoredOrders, Product, Order, getProductStock, decrementProductStock } from '../../../lib/store';
+import { fetchProducts, fetchOrders, placeOrder } from '../../../lib/api';
 
 interface POSItem {
   product: Product;
@@ -26,10 +27,18 @@ export default function POSPage() {
 
   // Active placed POS order for thermal print modal
   const [receiptOrder, setReceiptOrder] = useState<Order | null>(null);
+  const [billFormat, setBillFormat] = useState<'standard' | 'thermal'>('standard');
+
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    setProducts(getStoredProducts());
-    setOrders(getStoredOrders());
+    Promise.all([fetchProducts(), fetchOrders()])
+      .then(([productsData, ordersData]) => {
+        setProducts(productsData || []);
+        setOrders(ordersData || []);
+      })
+      .catch(err => console.error(err))
+      .finally(() => setLoading(false));
   }, []);
 
   // Add to POS Cart
@@ -86,47 +95,42 @@ export default function POSPage() {
   const total = Math.max(0, subtotal + gstAmount - discountAmount);
 
   // Submit and Print Receipt
-  const handleCheckoutPOS = (e: React.FormEvent) => {
+  const handleCheckoutPOS = async (e: React.FormEvent) => {
     e.preventDefault();
     if (posCart.length === 0) {
       alert('POS cart is empty. Please select products.');
       return;
     }
 
-    // 1. Decrement Inventory Stock (supporting combos component inventory decrement!)
-    let updatedProducts = [...products];
-    posCart.forEach(item => {
-      updatedProducts = decrementProductStock(item.product.id, item.quantity, updatedProducts);
-    });
-    setProducts(updatedProducts);
-    saveStoredProducts(updatedProducts);
+    try {
+      const orderPayload = {
+        total: total,
+        customerName: customerName.trim() || 'Walk-In Customer',
+        isPOS: true,
+        posPaymentMode: paymentMode,
+        posCustomerPhone: customerPhone.trim() || undefined,
+        items: posCart.map(item => ({
+          name: item.product.name,
+          quantity: item.quantity,
+          price: item.product.price * item.quantity,
+          img: item.product.imageSrc
+        }))
+      };
 
-    // 2. Log Order
-    const newOrderId = `NZ-POS-${Math.floor(10000 + Math.random() * 90000)}`;
-    const newOrder: Order = {
-      id: newOrderId,
-      date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-      status: 'Delivered', // Immediate delivery for receptionist desk orders
-      total: total,
-      trackingStep: 4,
-      customerName: customerName.trim() || 'Walk-In Customer',
-      isPOS: true,
-      posPaymentMode: paymentMode,
-      posCustomerPhone: customerPhone.trim() || undefined,
-      items: posCart.map(item => ({
-        name: item.product.name,
-        quantity: item.quantity,
-        price: item.product.price * item.quantity,
-        img: item.product.imageSrc
-      }))
-    };
+      const newOrder = await placeOrder(orderPayload);
+      
+      // Update local state orders
+      setOrders(prev => [newOrder, ...prev]);
 
-    const updatedOrders = [newOrder, ...orders];
-    setOrders(updatedOrders);
-    saveStoredOrders(updatedOrders);
+      // Set active receipt to launch Thermal overlay
+      setReceiptOrder(newOrder);
 
-    // Set active receipt to launch Thermal overlay
-    setReceiptOrder(newOrder);
+      // Re-fetch products to get updated stock levels from backend
+      const updatedProds = await fetchProducts();
+      setProducts(updatedProds);
+    } catch (err: any) {
+      alert(err.message || 'Failed to place POS order');
+    }
   };
 
   const handleStartNewBill = () => {
@@ -149,6 +153,17 @@ export default function POSPage() {
     p.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
     p.description.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  if (loading) {
+    return (
+      <div className="min-h-[50vh] flex items-center justify-center font-poppins">
+        <div className="text-center space-y-4">
+          <div className="animate-spin rounded-full h-10 w-10 border-4 border-emerald-900 border-t-transparent mx-auto"></div>
+          <p className="text-emerald-900/60 font-bold uppercase text-xs tracking-widest">Loading POS Counter...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="print:bg-white print:p-0 print:text-black">
@@ -362,105 +377,210 @@ export default function POSPage() {
         </form>
       </div>
 
-      {/* THERMAL BILL RECEIPT OVERLAY MODAL */}
       {receiptOrder && (
-        <div className="fixed inset-0 z-100 flex items-center justify-center p-6 bg-emerald-950/40 backdrop-blur-sm print:absolute print:inset-0 print:bg-white print:p-0 print:block">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-emerald-950/40 backdrop-blur-sm print:absolute print:inset-0 print:bg-white print:p-0 print:block">
           
           {/* Main Card */}
-          <div className="bg-white w-full max-w-sm rounded-[2rem] shadow-2xl p-6 relative z-10 flex flex-col justify-between overflow-hidden border border-emerald-900/5 print:rounded-none print:shadow-none print:border-none print:w-full print:p-0">
+          <div className="bg-white w-full max-w-md h-[680px] rounded-[2.5rem] shadow-2xl p-6 relative z-10 flex flex-col justify-between overflow-hidden border border-emerald-900/5 print:rounded-none print:shadow-none print:border-none print:w-full print:p-0 print:h-auto">
             
             {/* Modal Controls */}
-            <div className="flex justify-end gap-2 mb-6 print:hidden">
+            <div className="flex flex-col gap-4 mb-6 print:hidden shrink-0">
+              <div className="flex items-center justify-between border-b border-emerald-900/5 pb-3">
+                <span className="text-[10px] font-black uppercase tracking-widest text-emerald-900/50">Format</span>
+                <div className="flex items-center gap-2">
+                  <div className="flex bg-emerald-955/5 p-0.5 rounded-xl border border-emerald-900/10 gap-0.5">
+                    <button 
+                      onClick={() => setBillFormat('standard')}
+                      className={`px-3.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all ${billFormat === 'standard' ? 'bg-emerald-900 text-white shadow-sm' : 'text-emerald-900/60 hover:text-emerald-950'}`}
+                    >
+                      Standard
+                    </button>
+                    <button 
+                      onClick={() => setBillFormat('thermal')}
+                      className={`px-3.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all ${billFormat === 'thermal' ? 'bg-emerald-900 text-white shadow-sm' : 'text-emerald-900/60 hover:text-emerald-950'}`}
+                    >
+                      Thermal Roll
+                    </button>
+                  </div>
+                  
+                  {/* Close icon that closes print preview and resets cart for a new bill */}
+                  <button 
+                    onClick={handleStartNewBill}
+                    className="w-8 h-8 rounded-full bg-emerald-950/5 hover:bg-red-50 hover:text-red-600 text-emerald-950 flex items-center justify-center transition-all"
+                    title="Close Receipt & Start New checkout"
+                  >
+                    <span className="material-symbols-outlined text-base">close</span>
+                  </button>
+                </div>
+              </div>
+
               <button 
                 onClick={handlePrintReceipt}
-                className="bg-emerald-900 text-white font-black text-[10px] uppercase tracking-widest px-4 py-2 rounded-xl hover:bg-emerald-800 transition-all flex items-center gap-1.5"
+                className="w-full bg-emerald-900 text-white font-black text-xs uppercase tracking-widest py-3.5 rounded-xl hover:bg-emerald-800 active:scale-[0.98] transition-all flex items-center justify-center gap-2 shadow-lg shadow-emerald-900/20"
               >
-                <span className="material-symbols-outlined text-sm">print</span> Print Receipt
-              </button>
-              <button 
-                onClick={handleStartNewBill}
-                className="bg-emerald-950/5 hover:bg-emerald-900 hover:text-white text-emerald-950 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all"
-              >
-                Start New Bill
+                <span className="material-symbols-outlined text-base">print</span> Print Receipt
               </button>
             </div>
 
-            {/* Thermal Print Slip layout */}
-            <div className="print-receipt-container text-black font-mono text-[11px] leading-tight space-y-4">
-              <div className="text-center space-y-1">
-                <h2 className="font-bold text-base tracking-tighter uppercase text-emerald-950">Ninjaro Store</h2>
-                <p className="text-[10px]">Mocktail Premix Powder Desk</p>
-                <p className="text-[9px]">BKC High Street, Mumbai</p>
-                <p className="text-[9px] pt-1">Tel: +91 99999-88888</p>
-              </div>
-
-              <div className="border-t border-dashed border-gray-400 pt-2 space-y-1">
-                <div className="flex justify-between">
-                  <span>Bill ID: {receiptOrder.id}</span>
-                  <span>Date: {receiptOrder.date}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Cashier: Admin Desk</span>
-                  <span>Payment: {receiptOrder.posPaymentMode}</span>
-                </div>
-                <div>Customer: {receiptOrder.customerName}</div>
-                {receiptOrder.posCustomerPhone && <div>Phone: {receiptOrder.posCustomerPhone}</div>}
-              </div>
-
-              {/* Items list */}
-              <div className="border-t border-dashed border-gray-400 py-2">
-                <table className="w-full text-left font-mono text-[10px]">
-                  <thead>
-                    <tr className="border-b border-dashed border-gray-400 font-bold">
-                      <th className="pb-1">Desc</th>
-                      <th className="pb-1 text-center w-10">Qty</th>
-                      <th className="pb-1 text-right w-20">Amount</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {receiptOrder.items.map((item, idx) => (
-                      <tr key={idx}>
-                        <td className="py-1">{item.name}</td>
-                        <td className="py-1 text-center">{item.quantity}</td>
-                        <td className="py-1 text-right">₹{item.price}/-</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Calculations */}
-              <div className="border-t border-dashed border-gray-400 pt-2 space-y-1">
-                <div className="flex justify-between">
-                  <span>Subtotal:</span>
-                  <span>₹{subtotal}/-</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>CGST (9%):</span>
-                  <span>₹{Math.round(subtotal * 0.09)}/-</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>SGST (9%):</span>
-                  <span>₹{Math.round(subtotal * 0.09)}/-</span>
-                </div>
-                {discountAmount > 0 && (
-                  <div className="flex justify-between text-red-655 font-bold">
-                    <span>Discount:</span>
-                    <span>-₹{discountAmount}/-</span>
+            {/* Scrollable Content (Height consistent on screen, auto on print) */}
+            <div className="flex-1 overflow-y-auto pr-1 pb-2 scrollbar-thin scrollbar-thumb-emerald-900/10 print:overflow-visible print:h-auto print:pr-0 print:pb-0">
+              
+              {/* Standard Format */}
+              {billFormat === 'standard' && (
+                <div className="font-poppins text-emerald-955 space-y-6 text-sm">
+                  <div className="text-center border-b border-emerald-900/10 pb-4">
+                    <h2 className="font-limelight text-3xl tracking-tighter uppercase text-emerald-955 leading-none">Ninjaro✧</h2>
+                    <p className="text-[10px] text-emerald-900/50 uppercase tracking-widest font-black mt-1">Premium Mocktail Brand</p>
+                    <p className="text-[9px] text-emerald-900/40 uppercase tracking-widest mt-1">Cash Receipt</p>
                   </div>
-                )}
-                <div className="flex justify-between font-bold text-sm border-t border-dashed border-gray-400 pt-2">
-                  <span>NET TOTAL:</span>
-                  <span>₹{receiptOrder.total}/-</span>
+
+                  <div className="grid grid-cols-2 gap-y-2 text-[10px] uppercase tracking-wider text-emerald-900/70 border-b border-emerald-900/5 pb-4">
+                    <div>Bill: <span className="font-black text-emerald-955">{receiptOrder!.id}</span></div>
+                    <div className="text-right">Date: <span className="font-black text-emerald-955">{receiptOrder!.date}</span></div>
+                    <div>Cashier: <span className="font-black text-emerald-955">Counter Desk</span></div>
+                    <div className="text-right">Mode: <span className="font-black text-emerald-955">{receiptOrder!.posPaymentMode}</span></div>
+                    {receiptOrder!.customerName && (
+                      <div className="col-span-2">Customer: <span className="font-black text-emerald-955">{receiptOrder!.customerName}</span></div>
+                    )}
+                    {receiptOrder!.posCustomerPhone && (
+                      <div className="col-span-2">Phone: <span className="font-black text-emerald-955">{receiptOrder!.posCustomerPhone}</span></div>
+                    )}
+                  </div>
+
+                  <div className="space-y-3">
+                    <table className="w-full text-left text-xs">
+                      <thead>
+                        <tr className="bg-emerald-955/5 text-emerald-900/50 font-black uppercase tracking-widest text-[9px] border-b border-emerald-900/10">
+                          <th className="py-2 px-1">Description</th>
+                          <th className="py-2 text-center w-12">Qty</th>
+                          <th className="py-2 text-right w-20">Price</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-emerald-900/5">
+                        {(receiptOrder!.items || []).map((item, idx) => (
+                          <tr key={idx} className="font-bold text-emerald-955">
+                            <td className="py-2.5 px-1">{item.name}</td>
+                            <td className="py-2.5 text-center text-emerald-900/60">×{item.quantity}</td>
+                            <td className="py-2.5 text-right font-black">₹{item.price}/-</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <div className="border-t border-emerald-900/10 pt-4 space-y-1.5 text-xs text-right">
+                    <div className="flex justify-between text-emerald-900/60 font-bold">
+                      <span>Subtotal:</span>
+                      <span>₹{(receiptOrder!.items || []).reduce((acc, item) => acc + item.price, 0)}/-</span>
+                    </div>
+                    <div className="flex justify-between text-emerald-900/60 font-bold">
+                      <span>CGST (9%):</span>
+                      <span>₹{Math.round((receiptOrder!.items || []).reduce((acc, item) => acc + item.price, 0) * 0.09)}/-</span>
+                    </div>
+                    <div className="flex justify-between text-emerald-900/60 font-bold">
+                      <span>SGST (9%):</span>
+                      <span>₹{Math.round((receiptOrder!.items || []).reduce((acc, item) => acc + item.price, 0) * 0.09)}/-</span>
+                    </div>
+                    {discountAmount > 0 && (
+                      <div className="flex justify-between text-red-655 font-bold">
+                        <span>Discount:</span>
+                        <span>-₹{discountAmount}/-</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between font-black text-emerald-955 text-sm border-t border-emerald-900/10 pt-2">
+                      <span>Grand Total:</span>
+                      <span>₹{receiptOrder!.total}/-</span>
+                    </div>
+                  </div>
+
+                  <div className="text-center text-[9px] text-emerald-900/40 uppercase tracking-widest pt-4 border-t border-dashed border-emerald-900/10">
+                    Thank you for visiting · Please come again
+                  </div>
                 </div>
-              </div>
+              )}
 
-              <div className="border-t border-dashed border-gray-400 pt-4 text-center space-y-1">
-                <p className="font-bold text-[9px] uppercase tracking-wider">Keep Shifting Your State</p>
-                <p className="text-[8px]">Thank you for visiting. Please come again!</p>
-              </div>
+              {/* Thermal Monospace format */}
+              {billFormat === 'thermal' && (
+                <div className="font-mono text-black text-[10px] leading-tight space-y-3 uppercase tracking-tight w-full max-w-[280px] mx-auto">
+                  <div className="text-center space-y-1">
+                    <h2 className="font-bold text-sm tracking-tight">NINJARO STORE</h2>
+                    <p className="text-[9px]">Mocktail Premix Powder Desk</p>
+                    <p className="text-[9px]">BKC High Street, Mumbai</p>
+                    <p className="text-[9px]">Tel: +91 99999-88888</p>
+                    <p className="text-[9px] pt-1">------- CASH MEMO -------</p>
+                  </div>
+
+                  <div className="space-y-1 border-t border-dashed border-gray-500 pt-2">
+                    <div>Date: {receiptOrder!.date}</div>
+                    <div>Bill No: {receiptOrder!.id}</div>
+                    <div>Cashier: Admin Desk</div>
+                    <div>Payment: {receiptOrder!.posPaymentMode}</div>
+                    {receiptOrder!.customerName && (
+                      <div>Customer: {receiptOrder!.customerName}</div>
+                    )}
+                    {receiptOrder!.posCustomerPhone && (
+                      <div>Phone: {receiptOrder!.posCustomerPhone}</div>
+                    )}
+                  </div>
+
+                  <div className="border-t border-dashed border-gray-500 pt-2 pb-1">
+                    <table className="w-full text-left font-mono text-[9px] leading-none">
+                      <thead>
+                        <tr className="border-b border-dashed border-gray-500 font-bold">
+                          <th className="pb-1">Particulars</th>
+                          <th className="pb-1 text-center w-8">Qty</th>
+                          <th className="pb-1 text-right w-12">Rate</th>
+                          <th className="pb-1 text-right w-16">Amount</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(receiptOrder!.items || []).map((item, idx) => {
+                          const unitRate = item.quantity > 0 ? Math.round(item.price / item.quantity) : item.price;
+                          return (
+                            <tr key={idx} className="border-b border-dotted border-gray-300">
+                              <td className="py-1">{item.name}</td>
+                              <td className="py-1 text-center">{item.quantity}</td>
+                              <td className="py-1 text-right">₹{unitRate}</td>
+                              <td className="py-1 text-right">₹{item.price}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <div className="border-t border-dashed border-gray-500 pt-2 space-y-1">
+                    <div className="flex justify-between">
+                      <span>Sub Total:</span>
+                      <span>₹{(receiptOrder!.items || []).reduce((acc, item) => acc + item.price, 0)}.00</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>CGST @9%:</span>
+                      <span>₹{Math.round((receiptOrder!.items || []).reduce((acc, item) => acc + item.price, 0) * 0.09)}.00</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>SGST @9%:</span>
+                      <span>₹{Math.round((receiptOrder!.items || []).reduce((acc, item) => acc + item.price, 0) * 0.09)}.00</span>
+                    </div>
+                    {discountAmount > 0 && (
+                      <div className="flex justify-between font-bold text-red-600">
+                        <span>Discount:</span>
+                        <span>-₹{discountAmount}.00</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between font-bold text-xs border-t border-dashed border-gray-500 pt-1.5">
+                      <span>TOTAL:</span>
+                      <span>₹{receiptOrder!.total}.00</span>
+                    </div>
+                  </div>
+
+                  <div className="border-t border-dashed border-gray-500 pt-3 text-center space-y-1">
+                    <p className="font-bold text-[9px] tracking-widest">THANK YOU - VISIT AGAIN</p>
+                    <p className="text-[8px] font-bold">E.&O.E.</p>
+                  </div>
+                </div>
+              )}
             </div>
-
           </div>
         </div>
       )}

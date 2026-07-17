@@ -21,7 +21,7 @@ export interface Product {
 export interface OrderItem {
   name: string;
   quantity: number;
-  price: number; // total price for this item (unitPrice * quantity)
+  price: number; // total price for this quantity (unitPrice * quantity)
   img: string;
 }
 
@@ -50,213 +50,9 @@ export interface CartItem {
   quantity: number;
 }
 
-export const DEFAULT_PRODUCTS: Product[] = [
-  // 20gm Pouch (5pc) section
-  {
-    id: 'prod-1',
-    name: 'Blue Lagoon (20gm Pouch)',
-    description: 'Natural blueberry extracts, sparkling spring water, and a hint of wild lavender. Pack of 5 pouches.',
-    price: 125,
-    mrp: 150,
-    category: '20gm Pouch (5pc)',
-    showInStorefront: true,
-    priority: 1,
-    imageSrc: '/blulagoonbox.png',
-    imageAlt: 'blue lagoon pouch',
-    topBgColor: 'bg-[#00485c]',
-    bottomBgColor: 'bg-[#006884]',
-    buttonTextColor: 'text-[#006884]',
-    stock: 120,
-    isBestSeller: true
-  },
-  {
-    id: 'prod-2',
-    name: 'Virgin Mojito (20gm Pouch)',
-    description: 'Fresh garden mint, hand-squeezed lime, and artisanal agave nectar syrup. Pack of 5 pouches.',
-    price: 125,
-    mrp: 150,
-    category: '20gm Pouch (5pc)',
-    showInStorefront: true,
-    priority: 2,
-    imageSrc: '/virginmojitobox.png',
-    imageAlt: 'virgin mojito pouch',
-    topBgColor: 'bg-[#1b8858]',
-    bottomBgColor: 'bg-[#25b07a]',
-    buttonTextColor: 'text-[#2fd696]',
-    stock: 95
-  },
-  {
-    id: 'prod-3',
-    name: 'Green Mango (20gm Pouch)',
-    description: 'Real citrus pulp, unripe mango nectar, and a whisper of Himalayan salt. Pack of 5 pouches.',
-    price: 125,
-    mrp: 150,
-    category: '20gm Pouch (5pc)',
-    showInStorefront: true,
-    priority: 3,
-    imageSrc: '/greentangbox.png',
-    imageAlt: 'green mango pouch',
-    topBgColor: 'bg-[#004930]',
-    bottomBgColor: 'bg-[#00704a]',
-    buttonTextColor: 'text-[#00704a]',
-    stock: 110
-  },
-  {
-    id: 'prod-4',
-    name: 'Orange Tang (20gm Pouch)',
-    description: 'Blood orange concentrate, cold-pressed ginger, and sparkling tangerine water. Pack of 5 pouches.',
-    price: 125,
-    mrp: 150,
-    category: '20gm Pouch (5pc)',
-    showInStorefront: true,
-    priority: 4,
-    imageSrc: '/orangetangbox.png',
-    imageAlt: 'orange tang pouch',
-    topBgColor: 'bg-[#ff9500]',
-    bottomBgColor: 'bg-[#e87903]',
-    buttonTextColor: 'text-[#ff9500]',
-    stock: 80
-  },
-  {
-    id: 'combo-1',
-    name: '4in One Combo (20gm)',
-    description: 'Perfect 4-in-1 pack of 20gm mocktail premixes. Try all flavors in one single box!',
-    price: 399,
-    mrp: 600,
-    category: 'Combos',
-    showInStorefront: true,
-    priority: 0,
-    imageSrc: '/combo1.png',
-    imageAlt: '4in One Combo box',
-    topBgColor: 'bg-[#00485c]',
-    bottomBgColor: 'bg-[#e87903]',
-    buttonTextColor: 'text-[#006884]',
-    stock: 0,
-    isBestSeller: true,
-    isCombo: true,
-    comboItems: [
-      { productId: 'prod-1', quantity: 1 },
-      { productId: 'prod-2', quantity: 1 },
-      { productId: 'prod-3', quantity: 1 },
-      { productId: 'prod-4', quantity: 1 }
-    ]
-  },
-  // Jar 500gm section
-  {
-    id: 'prod-5',
-    name: 'Blue Lagoon (500gm Jar)',
-    description: 'Natural blueberry extracts, sparkling spring water, and wild lavender in a bulk 500gm jar.',
-    price: 399,
-    mrp: 499,
-    category: 'Jar 500gm',
-    showInStorefront: true,
-    priority: 5,
-    imageSrc: '/bluelagoonjar.png',
-    imageAlt: 'blue lagoon 500g jar',
-    topBgColor: 'bg-[#00485c]',
-    bottomBgColor: 'bg-[#006884]',
-    buttonTextColor: 'text-[#006884]',
-    stock: 50,
-    isBestSeller: true
-  },
-  {
-    id: 'prod-6',
-    name: 'Virgin Mojito (500gm Jar)',
-    description: 'Fresh garden mint, hand-squeezed lime, and agave nectar syrup in a bulk 500gm jar.',
-    price: 399,
-    mrp: 499,
-    category: 'Jar 500gm',
-    showInStorefront: true,
-    priority: 6,
-    imageSrc: '/virginmojitojar.png',
-    imageAlt: 'virgin mojito 500g jar',
-    topBgColor: 'bg-[#1b8858]',
-    bottomBgColor: 'bg-[#25b07a]',
-    buttonTextColor: 'text-[#2fd696]',
-    stock: 40
-  },
-  {
-    id: 'prod-7',
-    name: 'Green Mango (500gm Jar)',
-    description: 'Real citrus pulp, unripe mango nectar, and a whisper of Himalayan salt in a bulk 500gm jar.',
-    price: 399,
-    mrp: 499,
-    category: 'Jar 500gm',
-    showInStorefront: true,
-    priority: 7,
-    imageSrc: '/greenmangojar.png',
-    imageAlt: 'green mango 500g jar',
-    topBgColor: 'bg-[#004930]',
-    bottomBgColor: 'bg-[#00704a]',
-    buttonTextColor: 'text-[#00704a]',
-    stock: 35
-  },
-  {
-    id: 'prod-8',
-    name: 'Orange Tang (500gm Jar)',
-    description: 'Blood orange concentrate, cold-pressed ginger, and sparkling tangerine in a bulk 500gm jar.',
-    price: 399,
-    mrp: 499,
-    category: 'Jar 500gm',
-    showInStorefront: true,
-    priority: 8,
-    imageSrc: '/orangetangjar.png',
-    imageAlt: 'orange tang 500g jar',
-    topBgColor: 'bg-[#ff9500]',
-    bottomBgColor: 'bg-[#e87903]',
-    buttonTextColor: 'text-[#ff9500]',
-    stock: 30
-  }
-];
+export const DEFAULT_PRODUCTS: Product[] = [];
 
-const DEFAULT_ORDERS: Order[] = [
-  {
-    id: 'NZ-9942',
-    date: 'Oct 26, 2026',
-    status: 'Out for Delivery',
-    total: 1998,
-    eta: 'Today, 4:30 PM',
-    trackingStep: 3,
-    customerName: 'James T.',
-    shippingAddress: '456 Mixology Tower, BKC',
-    shippingCity: 'Mumbai',
-    shippingZip: '400051',
-    shippingMethod: 'express',
-    items: [
-      { name: 'Blue Lagoon', quantity: 2, price: 1332, img: '/blulagoonbox.png' },
-      { name: 'Orange Tang', quantity: 1, price: 666, img: '/orangetangbox.png' }
-    ]
-  },
-  {
-    id: 'NZ-8821',
-    date: 'Oct 12, 2026',
-    status: 'Delivered',
-    total: 666,
-    trackingStep: 4,
-    customerName: 'Elena R.',
-    shippingAddress: '123 Botanical Avenue',
-    shippingCity: 'Mumbai',
-    shippingZip: '400001',
-    shippingMethod: 'standard',
-    items: [{ name: 'Green Mango', quantity: 1, price: 666, img: '/greentangbox.png' }]
-  },
-  {
-    id: 'NZ-7740',
-    date: 'Sep 28, 2026',
-    status: 'Delivered',
-    total: 2664,
-    trackingStep: 4,
-    customerName: 'Sarah L.',
-    shippingAddress: '789 Lifestyle Boulevard',
-    shippingCity: 'Delhi',
-    shippingZip: '110001',
-    shippingMethod: 'standard',
-    items: [
-      { name: 'Blue Lagoon', quantity: 2, price: 1332, img: '/blulagoonbox.png' },
-      { name: 'Virgin Mojito', quantity: 2, price: 1332, img: '/virginmojitobox.png' }
-    ]
-  }
-];
+export const DEFAULT_ORDERS: Order[] = [];
 
 export function getProductStock(product: Product, allProducts: Product[]): number {
   if (product.isCombo && product.comboItems) {
@@ -308,7 +104,7 @@ export function decrementProductStock(productId: string, quantity: number, allPr
 export function getStoredProducts(): Product[] {
   if (typeof window === 'undefined') return DEFAULT_PRODUCTS;
   const stored = localStorage.getItem('nz_products');
-  if (!stored || !stored.includes('"category"') || !stored.includes('bluelagoonjar.png') || !stored.includes('combo1.png') || stored.includes('20gm Pouch (5pc Jar)')) {
+  if (!stored) {
     localStorage.setItem('nz_products', JSON.stringify(DEFAULT_PRODUCTS));
     return DEFAULT_PRODUCTS;
   }

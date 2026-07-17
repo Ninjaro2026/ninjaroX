@@ -1,19 +1,30 @@
 "use client";
 import React, { useState, useEffect } from 'react';
-import { getStoredProducts, getStoredOrders, Product, Order } from '../../lib/store';
+import { Product, Order } from '../../lib/store';
+import { fetchProducts, fetchOrders } from '../../lib/api';
 
 type ChannelFilter = 'all' | 'online' | 'offline';
 
 export default function AdminPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
+  const [loading, setLoading] = useState(true);
 
   const [channelFilter, setChannelFilter] = useState<ChannelFilter>('all');
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
 
   useEffect(() => {
-    setProducts(getStoredProducts());
-    setOrders(getStoredOrders());
+    Promise.all([fetchProducts(), fetchOrders()])
+      .then(([productsData, ordersData]) => {
+        setProducts(productsData || []);
+        setOrders(ordersData || []);
+      })
+      .catch(err => {
+        console.error('Failed to fetch data from API', err);
+      })
+      .finally(() => {
+        setLoading(false);
+      });
   }, []);
 
   // KPIs
@@ -37,8 +48,7 @@ export default function AdminPage() {
 
   const baseOrders = orders
     .filter(o => o.isPOS ? true : o.status === 'Delivered')
-    .slice()
-    .reverse();
+    .slice(); // Sort / order maintained from server-side sort
 
   const filteredOrders = baseOrders.filter(o =>
     channelFilter === 'all' ? true :
@@ -55,6 +65,17 @@ export default function AdminPage() {
   const handlePrint = () => {
     window.print();
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-[50vh] flex items-center justify-center font-poppins">
+        <div className="text-center space-y-4">
+          <div className="animate-spin rounded-full h-10 w-10 border-4 border-emerald-900 border-t-transparent mx-auto"></div>
+          <p className="text-emerald-900/60 font-bold uppercase text-xs tracking-widest">Loading Dashboard Details...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8 animate-in fade-in duration-300">
@@ -89,11 +110,11 @@ export default function AdminPage() {
           <div className="mt-4 pt-4 border-t border-emerald-900/5 grid grid-cols-2 gap-2 text-[10px] font-bold text-emerald-950">
             <div className="space-y-0.5">
               <span className="text-emerald-900/40 uppercase text-[8px] tracking-wider block">🌐 Online Count</span>
-              <span>{onlineCount} Orders ({ordersOnlinePct}%)</span>
+              <span>{onlineCount} ({ordersOnlinePct}%)</span>
             </div>
             <div className="space-y-0.5 border-l border-emerald-900/5 pl-2">
               <span className="text-emerald-900/40 uppercase text-[8px] tracking-wider block">🏢 Offline Count</span>
-              <span>{offlineCount} Receipts ({ordersOfflinePct}%)</span>
+              <span>{offlineCount} ({ordersOfflinePct}%)</span>
             </div>
           </div>
         </div>
@@ -177,8 +198,8 @@ export default function AdminPage() {
                     <td className="py-3.5 pr-4 font-black text-emerald-950 text-[11px]">{order.id}</td>
                     <td className="py-3.5 pr-4 font-semibold text-emerald-900">{order.customerName || 'Walk-In'}</td>
                     <td className="py-3.5 pr-4 text-emerald-900/60 font-medium max-w-[180px]">
-                      <span className="truncate block" title={order.items.map(i => `${i.name} x${i.quantity}`).join(', ')}>
-                        {order.items.map(i => `${i.name.replace(/\s*\(.*\)/, '')} ×${i.quantity}`).join(', ')}
+                      <span className="truncate block" title={(order.items || []).map(i => `${i.name} x${i.quantity}`).join(', ')}>
+                        {(order.items || []).map(i => `${i.name.replace(/\s*\(.*\)/, '')} ×${i.quantity}`).join(', ')}
                       </span>
                     </td>
                     <td className="py-3.5 pr-4">
@@ -255,7 +276,7 @@ export default function AdminPage() {
 
               {/* Brand header */}
               <div className="text-center border-b border-dashed border-emerald-900/15 pb-5">
-                <h1 className="text-2xl font-black text-emerald-950 tracking-tight">NINJIRO</h1>
+                <h1 className="text-2xl font-black text-emerald-950 tracking-tight">NINJARO</h1>
                 <p className="text-[10px] text-emerald-900/50 font-medium mt-0.5">Premium Mocktail Brand</p>
                 <p className="text-[9px] text-emerald-900/40 mt-1 uppercase tracking-widest font-bold">TAX INVOICE</p>
               </div>
@@ -327,7 +348,7 @@ export default function AdminPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-emerald-900/5">
-                    {selectedOrder.items.map((item, idx) => {
+                    {(selectedOrder.items || []).map((item, idx) => {
                       const unitPrice = item.quantity > 0 ? Math.round(item.price / item.quantity) : item.price;
                       return (
                         <tr key={idx} className="text-emerald-950">
@@ -350,7 +371,7 @@ export default function AdminPage() {
 
               {/* Footer note */}
               <p className="text-center text-[9px] text-emerald-900/30 font-bold uppercase tracking-widest pt-1 border-t border-dashed border-emerald-900/10">
-                Thank you for choosing Ninjiro · This is a computer generated invoice
+                Thank you for choosing Ninjaro · This is a computer generated invoice
               </p>
 
             </div>

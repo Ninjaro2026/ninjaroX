@@ -3,6 +3,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { ProductCard } from '../components/ProductCard';
 import { getStoredProducts, getStoredCart, saveStoredCart, Product, getProductStock, DEFAULT_PRODUCTS } from '../lib/store';
+import { AuthModal } from '../components/AuthModal';
+import { fetchProducts, getLoggedInUser, logoutUser } from '../lib/api';
 
 const REVIEWS = [
   {
@@ -32,6 +34,8 @@ export default function Home() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [isShopDropdownOpen, setIsShopDropdownOpen] = useState(false);
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
 
   // Dynamic categories resolver
   const visibleProducts = (products.length > 0 ? products : DEFAULT_PRODUCTS).filter(p => p.showInStorefront !== false);
@@ -56,7 +60,18 @@ export default function Home() {
 
   useEffect(() => {
     setIsMounted(true);
-    setProducts(getStoredProducts());
+    setCurrentUser(getLoggedInUser());
+
+    fetchProducts()
+      .then(data => {
+        setProducts(data);
+        localStorage.setItem('nz_products', JSON.stringify(data));
+      })
+      .catch(err => {
+        console.warn('API error fetching products, using fallback localStorage products', err);
+        setProducts(getStoredProducts());
+      });
+
     const cart = getStoredCart();
     setCartItems(cart.map(c => ({
       name: c.name,
@@ -204,25 +219,49 @@ export default function Home() {
             {/* Profile Dropdown */}
             <div className="relative">
               <button 
-                onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
+                onClick={() => {
+                  if (currentUser) {
+                    setIsProfileMenuOpen(!isProfileMenuOpen);
+                  } else {
+                    setIsAuthModalOpen(true);
+                  }
+                }}
                 className="w-9 h-9 md:w-10 md:h-10 rounded-full flex items-center justify-center text-zinc-800 transition-colors hover:bg-zinc-100 shrink-0"
                 aria-label="Profile dropdown"
               >
                 <span className="material-symbols-outlined text-lg md:text-xl">person</span>
               </button>
 
-              {isProfileMenuOpen && (
-                <div className="absolute right-0 mt-3 w-48 bg-white rounded-2xl shadow-xl border border-zinc-100 py-1.5 z-50 animate-in fade-in slide-in-from-top-2 duration-200">
-                  <Link href="/profile" className="flex items-center gap-3 px-4 py-2.5 hover:bg-zinc-50 text-zinc-800">
+              {isProfileMenuOpen && currentUser && (
+                <div className="absolute right-0 mt-3 w-52 bg-white rounded-2xl shadow-xl border border-zinc-100 py-2.5 z-50 animate-in fade-in slide-in-from-top-2 duration-200">
+                  <div className="px-4 py-1.5 border-b border-zinc-100 mb-1">
+                    <p className="text-[10px] font-black uppercase tracking-wider text-zinc-400">Account</p>
+                    <p className="text-xs font-bold text-zinc-800 truncate">{currentUser.name}</p>
+                    <p className="text-[10px] text-zinc-500 truncate">{currentUser.email}</p>
+                  </div>
+                  <Link href="/profile" className="flex items-center gap-3 px-4 py-2 hover:bg-zinc-50 text-zinc-800">
                     <span className="material-symbols-outlined text-lg text-zinc-400">account_circle</span>
                     <span className="font-bold text-xs tracking-tight">Profile</span>
                   </Link>
-                  <Link href="/track-order" className="flex items-center gap-3 px-4 py-2.5 hover:bg-zinc-50 text-zinc-800">
+                  <Link href="/track-order" className="flex items-center gap-3 px-4 py-2 hover:bg-zinc-50 text-zinc-800">
                     <span className="material-symbols-outlined text-lg text-zinc-400">local_shipping</span>
                     <span className="font-bold text-xs tracking-tight">Track Order</span>
                   </Link>
-                  <div className="mx-4 my-1 h-px bg-zinc-100"></div>
-                  <button className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-red-50 text-red-600 text-left">
+                  {currentUser.role === 'admin' && (
+                    <Link href="/admin" className="flex items-center gap-3 px-4 py-2 hover:bg-emerald-50 text-emerald-800">
+                      <span className="material-symbols-outlined text-lg text-emerald-500">dashboard</span>
+                      <span className="font-bold text-xs tracking-tight">Admin Dashboard</span>
+                    </Link>
+                  )}
+                  <div className="mx-4 my-1.5 h-px bg-zinc-100"></div>
+                  <button 
+                    onClick={() => {
+                      logoutUser();
+                      setCurrentUser(null);
+                      setIsProfileMenuOpen(false);
+                    }}
+                    className="w-full flex items-center gap-3 px-4 py-2 hover:bg-red-50 text-red-600 text-left"
+                  >
                     <span className="material-symbols-outlined text-lg text-red-600/40">logout</span>
                     <span className="font-bold text-xs tracking-tight">Logout</span>
                   </button>
@@ -724,6 +763,14 @@ export default function Home() {
       </div>
 
       {/* Grid Modal Overlay removed */}
+      <AuthModal 
+        isOpen={isAuthModalOpen} 
+        onClose={() => setIsAuthModalOpen(false)} 
+        onSuccess={(user) => {
+          setCurrentUser(user);
+          setIsProfileMenuOpen(true);
+        }} 
+      />
     </>
   );
 }

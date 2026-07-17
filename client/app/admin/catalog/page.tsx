@@ -1,6 +1,7 @@
 "use client";
 import React, { useState, useEffect } from 'react';
 import { getStoredProducts, saveStoredProducts, getStoredOrders, Product, Order, getProductStock } from '../../../lib/store';
+import { fetchProducts, createProduct, updateProduct, deleteProduct, fetchOrders } from '../../../lib/api';
 
 const COLOR_PRESETS = [
   { name: 'Blue Tropical', top: 'bg-[#00485c]', bottom: 'bg-[#006884]', buttonText: 'text-[#006884]' },
@@ -20,6 +21,7 @@ export default function CatalogPage() {
   // Storage states
   const [products, setProducts] = useState<Product[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
+  const [loading, setLoading] = useState(true);
 
   // Modals
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
@@ -50,8 +52,13 @@ export default function CatalogPage() {
   const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
 
   useEffect(() => {
-    setProducts(getStoredProducts());
-    setOrders(getStoredOrders());
+    Promise.all([fetchProducts(), fetchOrders()])
+      .then(([productsData, ordersData]) => {
+        setProducts(productsData || []);
+        setOrders(ordersData || []);
+      })
+      .catch(err => console.error(err))
+      .finally(() => setLoading(false));
   }, []);
 
   // Dynamic performance indicators per product
@@ -61,7 +68,7 @@ export default function CatalogPage() {
     
     orders.forEach(order => {
       if (order.status !== 'Cancelled') {
-        order.items.forEach(item => {
+        (order.items || []).forEach(item => {
           if (item.name === productName) {
             unitsSold += item.quantity;
             revenue += item.price;
@@ -124,7 +131,7 @@ export default function CatalogPage() {
     setIsProductModalOpen(true);
   };
 
-  const handleSaveProduct = (e: React.FormEvent) => {
+  const handleSaveProduct = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!prodName.trim() || !prodDesc.trim()) {
       alert('Please fill out all fields.');
@@ -146,75 +153,59 @@ export default function CatalogPage() {
       return;
     }
 
-    let updated: Product[];
-    if (editingProduct) {
-      updated = products.map(p => {
-        if (p.id === editingProduct.id) {
-          return {
-            ...p,
-            name: prodName,
-            description: prodDesc,
-            price: prodPrice,
-            stock: isCombo ? 0 : prodStock,
-            imageSrc: prodImage,
-            topBgColor: colorPreset.top,
-            bottomBgColor: colorPreset.bottom,
-            buttonTextColor: colorPreset.buttonText,
-            isCombo: isCombo,
-            comboItems: isCombo ? selectedComponents : undefined,
-            mrp: prodMrp,
-            category: prodCategory,
-            showInStorefront: prodShowInStorefront,
-            priority: prodPriority
-          };
-        }
-        return p;
-      });
-    } else {
-      const newProduct: Product = {
-        id: `prod-${Date.now()}`,
-        name: prodName,
-        description: prodDesc,
-        price: prodPrice,
-        stock: isCombo ? 0 : prodStock,
-        imageSrc: prodImage,
-        imageAlt: prodName.toLowerCase() + ' drink',
-        topBgColor: colorPreset.top,
-        bottomBgColor: colorPreset.bottom,
-        buttonTextColor: colorPreset.buttonText,
-        isCombo: isCombo,
-        comboItems: isCombo ? selectedComponents : undefined,
-        mrp: prodMrp,
-        category: prodCategory,
-        showInStorefront: prodShowInStorefront,
-        priority: prodPriority
-      };
-      updated = [...products, newProduct];
-    }
+    const payload: any = {
+      name: prodName,
+      description: prodDesc,
+      price: prodPrice,
+      stock: isCombo ? 0 : prodStock,
+      imageSrc: prodImage,
+      imageAlt: prodName.toLowerCase() + ' drink',
+      topBgColor: colorPreset.top,
+      bottomBgColor: colorPreset.bottom,
+      buttonTextColor: colorPreset.buttonText,
+      isCombo: isCombo,
+      comboItems: isCombo ? selectedComponents : undefined,
+      mrp: prodMrp,
+      category: prodCategory,
+      showInStorefront: prodShowInStorefront,
+      priority: prodPriority
+    };
 
-    setProducts(updated);
-    saveStoredProducts(updated);
-    setIsProductModalOpen(false);
-  };
-
-  const handleDeleteProduct = (id: string) => {
-    if (confirm('Are you sure you want to delete this product?')) {
-      const updated = products.filter(p => p.id !== id);
-      setProducts(updated);
-      saveStoredProducts(updated);
-      setSelectedProductIds(prev => prev.filter(item => item !== id));
-    }
-  };
-
-  const handleQuickRestock = (id: string, amount: number) => {
-    const updated = products.map(p => {
-      if (p.id === id) {
-        return { ...p, stock: p.stock + amount };
+    try {
+      if (editingProduct) {
+        const updatedProd = await updateProduct(editingProduct.id, payload);
+        setProducts(prev => prev.map(p => p.id === editingProduct.id ? updatedProd : p));
+      } else {
+        const newProd = await createProduct(payload);
+        setProducts(prev => [...prev, newProd]);
       }
-      return p;
-    });
-    setProducts(updated);
-    saveStoredProducts(updated);
+      setIsProductModalOpen(false);
+    } catch (err: any) {
+      alert(err.message || 'Failed to save product');
+    }
+  };
+
+  const handleDeleteProduct = async (id: string) => {
+    if (confirm('Are you sure you want to delete this product?')) {
+      try {
+        await deleteProduct(id);
+        setProducts(prev => prev.filter(p => p.id !== id));
+        setSelectedProductIds(prev => prev.filter(item => item !== id));
+      } catch (err: any) {
+        alert(err.message || 'Failed to delete product');
+      }
+    }
+  };
+
+  const handleQuickRestock = async (id: string, amount: number) => {
+    const product = products.find(p => p.id === id);
+    if (!product) return;
+    try {
+      const updated = await updateProduct(id, { stock: product.stock + amount });
+      setProducts(prev => prev.map(p => p.id === id ? updated : p));
+    } catch (err: any) {
+      alert(err.message || 'Failed to update stock');
+    }
   };
 
   // Bulk Actions

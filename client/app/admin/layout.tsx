@@ -2,41 +2,55 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { getLoggedInUser, loginUser, logoutUser } from '../../lib/api';
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [authError, setAuthError] = useState('');
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
   const pathname = usePathname();
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const auth = sessionStorage.getItem('nz_admin_auth');
-      if (auth === 'true') {
+      const loggedIn = getLoggedInUser();
+      const adminAuth = sessionStorage.getItem('nz_admin_auth');
+      
+      if (loggedIn && loggedIn.role === 'admin' && adminAuth === 'true') {
         setIsAuthenticated(true);
       }
     }
   }, []);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (password === 'admin123') {
-      setIsAuthenticated(true);
-      setAuthError('');
-      if (typeof window !== 'undefined') {
+    setAuthError('');
+    setLoading(true);
+
+    try {
+      // Authenticate using backend API by typing email and password
+      const user = await loginUser({ email: email.trim().toLowerCase(), password: password });
+      
+      if (user && user.role === 'admin') {
+        setIsAuthenticated(true);
         sessionStorage.setItem('nz_admin_auth', 'true');
+      } else {
+        setAuthError('Access denied: User is not an admin.');
+        logoutUser();
       }
-    } else {
-      setAuthError('Invalid credentials. Please enter admin123.');
+    } catch (err: any) {
+      setAuthError(err.message || 'Invalid admin credentials or connection error.');
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleLogout = () => {
     setIsAuthenticated(false);
-    if (typeof window !== 'undefined') {
-      sessionStorage.removeItem('nz_admin_auth');
-    }
+    sessionStorage.removeItem('nz_admin_auth');
+    logoutUser();
   };
 
   // Page title mapping
@@ -73,26 +87,48 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </div>
 
           <form onSubmit={handleLogin} className="glass-panel bg-white/40 backdrop-blur-3xl p-8 rounded-[2.5rem] border border-white/60 shadow-2xl space-y-6 text-left">
-            <div className="space-y-2">
-              <label className="text-[10px] font-black uppercase tracking-widest text-emerald-900/60 block">Enter Admin Passcode</label>
-              <div className="relative">
-                <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-emerald-900/40">lock</span>
-                <input 
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Password (admin123)" 
-                  className="w-full bg-white/40 border border-emerald-900/15 rounded-2xl pl-12 pr-6 py-4 text-sm font-bold outline-none focus:border-emerald-600 transition-all text-emerald-950 placeholder-emerald-900/30"
-                />
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-emerald-900/60 block">Admin Email Address</label>
+                <div className="relative">
+                  <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-emerald-900/40">mail</span>
+                  <input 
+                    type="email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="admin@ninjaro.com" 
+                    className="w-full bg-white/40 border border-emerald-900/15 rounded-2xl pl-12 pr-6 py-4 text-sm font-bold outline-none focus:border-emerald-600 transition-all text-emerald-950 placeholder-emerald-900/30"
+                    disabled={loading}
+                  />
+                </div>
               </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-emerald-900/60 block">Admin Password</label>
+                <div className="relative">
+                  <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-emerald-900/40">lock</span>
+                  <input 
+                    type="password"
+                    required
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="••••••••" 
+                    className="w-full bg-white/40 border border-emerald-900/15 rounded-2xl pl-12 pr-6 py-4 text-sm font-bold outline-none focus:border-emerald-600 transition-all text-emerald-950 placeholder-emerald-900/30"
+                    disabled={loading}
+                  />
+                </div>
+              </div>
+
               {authError && <p className="text-xs font-bold text-red-655 mt-1">{authError}</p>}
             </div>
 
             <button 
               type="submit" 
-              className="w-full bg-emerald-900 text-white py-4 rounded-2xl font-black uppercase tracking-widest hover:bg-emerald-800 active:scale-[0.98] transition-all shadow-xl shadow-emerald-900/20 text-xs"
+              disabled={loading}
+              className="w-full bg-emerald-900 text-white py-4 rounded-2xl font-black uppercase tracking-widest hover:bg-emerald-800 active:scale-[0.98] transition-all shadow-xl shadow-emerald-900/20 text-xs disabled:opacity-50"
             >
-              Verify Passcode
+              {loading ? 'Authenticating...' : 'Sign In'}
             </button>
             
             <div className="pt-2 text-center">
@@ -152,7 +188,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </Link>
         <button 
           onClick={handleLogout}
-          className="w-full text-[10px] font-black text-red-655 hover:bg-red-50/60 transition-all uppercase tracking-wider flex items-center gap-2 bg-red-50/30 px-4 py-3 rounded-2xl border border-red-200/40 shadow-sm text-left"
+          className="w-full text-[10px] font-black text-red-600 hover:bg-red-50/60 transition-all uppercase tracking-wider flex items-center gap-2 bg-red-50/30 px-4 py-3 rounded-2xl border border-red-200/40 shadow-sm text-left"
         >
           <span className="material-symbols-outlined text-base">logout</span> Logout
         </button>
