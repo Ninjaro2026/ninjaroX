@@ -168,27 +168,7 @@ export default function POSPage() {
   return (
     <div className="print:bg-white print:p-0 print:text-black">
       
-      {/* CSS print style to only show receipt during print */}
-      <style>{`
-        @media print {
-          body * {
-            visibility: hidden !important;
-          }
-          .print-receipt-container, .print-receipt-container * {
-            visibility: visible !important;
-          }
-          .print-receipt-container {
-            position: absolute !important;
-            left: 0 !important;
-            top: 0 !important;
-            width: 100% !important;
-            padding: 0 !important;
-            margin: 0 !important;
-            background: white !important;
-            color: black !important;
-          }
-        }
-      `}</style>
+
 
       {/* Main Billing columns */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 print:hidden animate-in fade-in duration-300">
@@ -378,10 +358,10 @@ export default function POSPage() {
       </div>
 
       {receiptOrder && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-emerald-950/40 backdrop-blur-sm print:absolute print:inset-0 print:bg-white print:p-0 print:block">
+        <div className="print-receipt-modal-overlay fixed inset-0 z-[100] flex items-center justify-center p-6 bg-emerald-950/40 backdrop-blur-sm print:static print:bg-white print:p-0 print:block">
           
           {/* Main Card */}
-          <div className="bg-white w-full max-w-md h-[680px] rounded-[2.5rem] shadow-2xl p-6 relative z-10 flex flex-col justify-between overflow-hidden border border-emerald-900/5 print:rounded-none print:shadow-none print:border-none print:w-full print:p-0 print:h-auto">
+          <div className="print-receipt-card bg-white w-full max-w-md h-[680px] rounded-[2.5rem] shadow-2xl p-6 relative z-10 flex flex-col justify-between overflow-hidden border border-emerald-900/5 print:rounded-none print:shadow-none print:border-none print:w-full print:p-0 print:h-auto">
             
             {/* Modal Controls */}
             <div className="flex flex-col gap-4 mb-6 print:hidden shrink-0">
