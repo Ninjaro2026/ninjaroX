@@ -168,24 +168,24 @@ export default function POSPage() {
   return (
     <div className="print:bg-white print:p-0 print:text-black">
       
-      {/* CSS print style to only show thermal receipt during print */}
-      <style jsx global>{`
+      {/* CSS print style to only show receipt during print */}
+      <style>{`
         @media print {
           body * {
-            visibility: hidden;
+            visibility: hidden !important;
           }
           .print-receipt-container, .print-receipt-container * {
-            visibility: visible;
+            visibility: visible !important;
           }
           .print-receipt-container {
-            position: absolute;
-            left: 0;
-            top: 0;
-            width: 80mm;
-            padding: 4mm;
-            margin: 0;
-            background: white;
-            color: black;
+            position: absolute !important;
+            left: 0 !important;
+            top: 0 !important;
+            width: 100% !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            background: white !important;
+            color: black !important;
           }
         }
       `}</style>
@@ -423,7 +423,7 @@ export default function POSPage() {
             </div>
 
             {/* Scrollable Content (Height consistent on screen, auto on print) */}
-            <div className="flex-1 overflow-y-auto pr-1 pb-2 scrollbar-thin scrollbar-thumb-emerald-900/10 print:overflow-visible print:h-auto print:pr-0 print:pb-0">
+            <div className="print-receipt-container flex-1 overflow-y-auto pr-1 pb-2 scrollbar-thin scrollbar-thumb-emerald-900/10 print:overflow-visible print:h-auto print:pr-0 print:pb-0">
               
               {/* Standard Format */}
               {billFormat === 'standard' && (
