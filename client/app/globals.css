@@ -88,3 +88,24 @@ body {
 .ambient-glow { box-shadow: 0 20px 40px rgba(0, 54, 38, 0.1); }
 .text-editorial-tight { letter-spacing: -0.02em; }
 
+/* Print styles for POS Billing Receipt */
+@media print {
+  body * {
+    visibility: hidden !important;
+  }
+  .print-receipt-container,
+  .print-receipt-container * {
+    visibility: visible !important;
+  }
+  .print-receipt-container {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+}
