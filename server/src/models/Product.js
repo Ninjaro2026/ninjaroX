@@ -5,6 +5,15 @@ const ComboItemSchema = new mongoose.Schema({
   quantity: { type: Number, required: true }
 }, { _id: false });
 
+const ReviewSchema = new mongoose.Schema({
+  id: { type: String, required: true },
+  userName: { type: String, required: true },
+  rating: { type: Number, required: true, min: 1, max: 5 },
+  comment: { type: String, required: true },
+  date: { type: String, required: true },
+  verified: { type: Boolean, default: true }
+}, { timestamps: true });
+
 const ProductSchema = new mongoose.Schema({
   id: { type: String, required: true, unique: true },
   name: { type: String, required: true },
@@ -22,7 +31,8 @@ const ProductSchema = new mongoose.Schema({
   stock: { type: Number, default: 0 },
   isCombo: { type: Boolean, default: false },
   comboItems: [ComboItemSchema],
-  isBestSeller: { type: Boolean, default: false }
+  isBestSeller: { type: Boolean, default: false },
+  reviews: [ReviewSchema]
 }, { timestamps: true });
 
 module.exports = mongoose.model('Product', ProductSchema);

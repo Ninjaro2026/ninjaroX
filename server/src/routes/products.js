@@ -75,6 +75,39 @@ async function productRoutes(fastify, opts) {
       return reply.code(500).send({ error: err.message });
     }
   });
+  // POST /api/products/:id/reviews (Add customer review)
+  fastify.post('/:id/reviews', async (request, reply) => {
+    const { id } = request.params;
+    const { userName, rating, comment } = request.body || {};
+
+    if (!userName || !rating || !comment) {
+      return reply.code(400).send({ error: 'Name, rating (1-5), and comment are required.' });
+    }
+
+    try {
+      const product = await Product.findOne({ id });
+      if (!product) {
+        return reply.code(404).send({ error: 'Product not found' });
+      }
+
+      const newReview = {
+        id: 'rev-' + Math.random().toString(36).substr(2, 9),
+        userName: userName.trim(),
+        rating: Number(rating),
+        comment: comment.trim(),
+        date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+        verified: true
+      };
+
+      if (!product.reviews) product.reviews = [];
+      product.reviews.unshift(newReview);
+      await product.save();
+
+      return { success: true, reviews: product.reviews };
+    } catch (err) {
+      return reply.code(500).send({ error: err.message });
+    }
+  });
 }
 
 module.exports = productRoutes;

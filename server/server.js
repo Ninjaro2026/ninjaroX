@@ -64,6 +64,10 @@ fastify.register(require('./src/routes/orders'), { prefix: '/api/orders' });
 
 async function seedData() {
   try {
+    // Database Reset completed. (Uncomment below lines if manual wipe is needed)
+    // const orderPurge = await Order.deleteMany({});
+    // const customerPurge = await User.deleteMany({ role: { $ne: 'admin' } });
+
     // 1. Seed Admin User
     const adminEmail = process.env.ADMIN_EMAIL || 'admin@ninjaro.com';
     const adminPassword = process.env.ADMIN_PASSWORD || 'AdminNinjaro2026!';
