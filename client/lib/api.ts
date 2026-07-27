@@ -1,4 +1,9 @@
-const API_BASE_URL = 'https://ninjaro-x-or1s.vercel.app/api';
+const getApiBaseUrl = () => {
+  const rawUrl = process.env.NEXT_PUBLIC_API_URL || 'https://ninjaro-x-or1s-hbdiel76e-ninjaro.vercel.app/api';
+  return rawUrl.endsWith('/') ? rawUrl.slice(0, -1) : rawUrl;
+};
+
+const API_BASE_URL = getApiBaseUrl();
 
 export function getAuthToken(): string | null {
   if (typeof window === 'undefined') return null;
@@ -130,6 +135,17 @@ export async function deleteProduct(productId: string) {
   });
 }
 
+export async function fetchProductById(productId: string) {
+  return apiRequest(`/products/${productId}`);
+}
+
+export async function addProductReview(productId: string, reviewData: { userName: string; rating: number; comment: string }) {
+  return apiRequest(`/products/${productId}/reviews`, {
+    method: 'POST',
+    body: JSON.stringify(reviewData)
+  });
+}
+
 // Orders API
 export async function fetchOrders() {
   return apiRequest('/orders');
@@ -157,5 +173,13 @@ export async function updateOrderAdmin(orderId: string, statusData: any) {
   return apiRequest(`/orders/${orderId}`, {
     method: 'PUT',
     body: JSON.stringify(statusData)
+  });
+}
+
+// Upload API for Google Drive
+export async function uploadImagesToDrive(images: (string | { base64: string; fileName?: string })[]) {
+  return apiRequest('/upload/drive', {
+    method: 'POST',
+    body: JSON.stringify({ images })
   });
 }

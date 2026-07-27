@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { getStoredProducts, saveStoredProducts, getStoredOrders, saveStoredOrders, Product, Order, getProductStock, decrementProductStock } from '../../../lib/store';
 import { fetchProducts, fetchOrders, placeOrder } from '../../../lib/api';
+import { ProductCardSkeleton } from '../../../components/Skeleton';
 
 interface POSItem {
   product: Product;
@@ -175,43 +176,52 @@ export default function POSPage() {
         
         {/* Left Column: Product Selection Grid */}
         <div className="lg:col-span-2 space-y-6">
-          <div className="glass-panel bg-white/40 p-4 border border-white/60 rounded-3xl shadow-sm flex items-center justify-between gap-4">
+          <div className="bg-white p-5 border-2 border-emerald-900/10 rounded-3xl shadow-xl flex items-center justify-between gap-4">
             <div className="relative w-full">
-              <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-emerald-900/40 text-lg">search</span>
+              <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-emerald-900/50 text-lg">search</span>
               <input 
                 type="text" 
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Quick lookup by item name..." 
-                className="w-full bg-white/50 border border-emerald-900/10 rounded-2xl pl-12 pr-6 py-3.5 text-xs font-bold outline-none focus:border-emerald-600 transition-all text-emerald-950"
+                className="w-full bg-slate-50 border-2 border-emerald-900/15 rounded-2xl pl-12 pr-6 py-3.5 text-xs font-black outline-none focus:border-emerald-700 focus:bg-white transition-all text-emerald-900 placeholder-emerald-900/40"
               />
             </div>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-            {posProductsFiltered.map(p => {
+            {loading ? (
+              <>
+                <ProductCardSkeleton />
+                <ProductCardSkeleton />
+                <ProductCardSkeleton />
+                <ProductCardSkeleton />
+                <ProductCardSkeleton />
+                <ProductCardSkeleton />
+              </>
+            ) : posProductsFiltered.map(p => {
               const stockVal = getProductStock(p, products);
               return (
                 <button 
                   key={p.id}
                   onClick={() => handleAddToPOSCart(p)}
-                  className="glass-panel bg-white/40 border border-white/60 rounded-3xl p-4 flex flex-col justify-between text-left hover:-translate-y-0.5 hover:shadow-lg transition-all duration-300 relative group overflow-hidden"
+                  className="bg-white border-2 border-emerald-900/10 rounded-3xl p-4 flex flex-col justify-between text-left hover:-translate-y-1 hover:shadow-2xl transition-all duration-300 relative group overflow-hidden"
                 >
                   {p.isCombo && (
-                    <span className="absolute top-3 left-3 bg-emerald-950 text-white text-[7px] font-black uppercase px-2 py-0.5 rounded shadow-sm">
+                    <span className="absolute top-3 left-3 bg-emerald-950 text-white text-[8px] font-black uppercase px-2.5 py-0.5 rounded-full shadow-md">
                       Combo Pack
                     </span>
                   )}
 
-                  <div className="w-full h-28 flex items-center justify-center p-3 rounded-2xl bg-emerald-950/5 group-hover:bg-emerald-950/10 transition-colors">
+                  <div className="w-full h-28 flex items-center justify-center p-3 rounded-2xl bg-emerald-900/5 group-hover:bg-emerald-900/10 transition-colors">
                     <img src={p.imageSrc} alt={p.name} className="h-full object-contain drop-shadow-md" />
                   </div>
 
                   <div className="mt-3 space-y-1">
-                    <h4 className="font-black text-emerald-950 text-xs truncate uppercase tracking-wider">{p.name}</h4>
+                    <h4 className="font-black text-emerald-900 text-xs truncate uppercase tracking-wider">{p.name}</h4>
                     <div className="flex justify-between items-center mt-1">
-                      <span className="text-emerald-700 text-xs font-black">₹{p.price}/-</span>
-                      <span className={`text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-lg ${stockVal === 0 ? 'bg-red-50 text-red-655' : 'bg-emerald-950/5 text-emerald-900/60'}`}>
+                      <span className="text-emerald-900 text-xs font-black bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-900/10">₹{p.price}/-</span>
+                      <span className={`text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-lg ${stockVal === 0 ? 'bg-rose-100 text-rose-800' : 'bg-slate-100 text-emerald-900 font-black'}`}>
                         {stockVal === 0 ? 'Out of Stock' : `${stockVal} in stock`}
                       </span>
                     </div>
@@ -220,8 +230,8 @@ export default function POSPage() {
               );
             })}
 
-            {posProductsFiltered.length === 0 && (
-              <div className="col-span-full py-16 text-center text-emerald-900/35 font-bold uppercase text-xs tracking-widest">
+            {!loading && posProductsFiltered.length === 0 && (
+              <div className="col-span-full py-16 text-center text-emerald-900/50 font-extrabold uppercase text-xs tracking-widest">
                 No catalog items found.
               </div>
             )}
@@ -229,11 +239,11 @@ export default function POSPage() {
         </div>
 
         {/* Right Column: Billing cart ledger */}
-        <form onSubmit={handleCheckoutPOS} className="glass-panel bg-white/50 backdrop-blur-3xl p-6 rounded-[2rem] border border-white/60 shadow-lg flex flex-col justify-between space-y-6">
+        <form onSubmit={handleCheckoutPOS} className="bg-white p-6 rounded-3xl border-2 border-emerald-900/10 shadow-2xl flex flex-col justify-between space-y-6">
           <div className="space-y-4">
-            <div className="flex justify-between items-center border-b border-emerald-900/5 pb-3">
-              <h3 className="font-black text-emerald-950 uppercase tracking-tight text-sm">Receipt Cart</h3>
-              <span className="text-[9px] bg-emerald-950 text-white font-bold px-2.5 py-1 rounded-full uppercase tracking-wider">
+            <div className="flex justify-between items-center border-b-2 border-emerald-900/10 pb-3">
+              <h3 className="font-black text-emerald-900 uppercase tracking-tight text-sm">Receipt Cart</h3>
+              <span className="text-[10px] bg-emerald-950 text-white font-black px-3 py-1 rounded-full uppercase tracking-wider shadow-sm">
                 {posCart.reduce((a, b) => a + b.quantity, 0)} Items
               </span>
             </div>
@@ -257,11 +267,11 @@ export default function POSPage() {
                       >
                         <span className="material-symbols-outlined text-xs">remove</span>
                       </button>
-                      <span className="w-6 text-center text-xs font-bold text-emerald-955">{item.quantity}</span>
+                      <span className="w-6 text-center text-xs font-bold text-emerald-900">{item.quantity}</span>
                       <button 
                         type="button"
                         onClick={() => handleUpdatePOSQty(item.product.id, 1)}
-                        className="w-7 h-full flex items-center justify-center text-emerald-955 hover:bg-emerald-50"
+                        className="w-7 h-full flex items-center justify-center text-emerald-900 hover:bg-emerald-50"
                       >
                         <span className="material-symbols-outlined text-xs">add</span>
                       </button>
@@ -291,14 +301,14 @@ export default function POSPage() {
                 value={customerName}
                 onChange={(e) => setCustomerName(e.target.value)}
                 placeholder="Customer Name" 
-                className="w-full bg-white/45 border border-emerald-900/10 rounded-xl px-3 py-2.5 text-[11px] font-bold outline-none focus:border-emerald-600 transition-all text-emerald-955 placeholder-emerald-900/30"
+                className="w-full bg-white/45 border border-emerald-900/10 rounded-xl px-3 py-2.5 text-[11px] font-bold outline-none focus:border-emerald-600 transition-all text-emerald-900 placeholder-emerald-900/30"
               />
               <input 
                 type="tel" 
                 value={customerPhone}
                 onChange={(e) => setCustomerPhone(e.target.value)}
                 placeholder="Customer Phone" 
-                className="w-full bg-white/45 border border-emerald-900/10 rounded-xl px-3 py-2.5 text-[11px] font-bold outline-none focus:border-emerald-600 transition-all text-emerald-955 placeholder-emerald-900/30"
+                className="w-full bg-white/45 border border-emerald-900/10 rounded-xl px-3 py-2.5 text-[11px] font-bold outline-none focus:border-emerald-600 transition-all text-emerald-900 placeholder-emerald-900/30"
               />
             </div>
 
@@ -318,7 +328,7 @@ export default function POSPage() {
           </div>
 
           {/* Calculations Ledger */}
-          <div className="bg-emerald-950/5 p-4 rounded-2xl border border-emerald-900/5 space-y-2.5 text-xs text-emerald-955 font-bold">
+          <div className="bg-emerald-950/5 p-4 rounded-2xl border border-emerald-900/5 space-y-2.5 text-xs text-emerald-900 font-bold">
             <div className="flex justify-between text-emerald-900/60 font-bold">
               <span>Subtotal:</span>
               <span>₹{subtotal}/-</span>
@@ -337,12 +347,12 @@ export default function POSPage() {
                   type="number"
                   value={discountAmount}
                   onChange={(e) => setDiscountAmount(Math.max(0, Number(e.target.value)))}
-                  className="w-full bg-transparent border-none outline-none text-right font-black text-xs text-emerald-955"
+                  className="w-full bg-transparent border-none outline-none text-right font-black text-xs text-emerald-900"
                 />
               </div>
             </div>
 
-            <div className="flex justify-between text-emerald-955 font-black text-sm pt-2 border-t border-emerald-900/10">
+            <div className="flex justify-between text-emerald-900 font-black text-sm pt-2 border-t border-emerald-900/10">
               <span>Grand Total:</span>
               <span>₹{total}/-</span>
             </div>
@@ -358,7 +368,7 @@ export default function POSPage() {
       </div>
 
       {receiptOrder && (
-        <div className="print-receipt-modal-overlay fixed inset-0 z-[100] flex items-center justify-center p-6 bg-emerald-950/40 backdrop-blur-sm print:static print:bg-white print:p-0 print:block">
+        <div className="print-receipt-modal-overlay fixed inset-0 z-100 flex items-center justify-center p-6 bg-emerald-950/40 backdrop-blur-sm print:static print:bg-white print:p-0 print:block">
           
           {/* Main Card */}
           <div className="print-receipt-card bg-white w-full max-w-md h-[680px] rounded-[2.5rem] shadow-2xl p-6 relative z-10 flex flex-col justify-between overflow-hidden border border-emerald-900/5 print:rounded-none print:shadow-none print:border-none print:w-full print:p-0 print:h-auto">
@@ -368,7 +378,7 @@ export default function POSPage() {
               <div className="flex items-center justify-between border-b border-emerald-900/5 pb-3">
                 <span className="text-[10px] font-black uppercase tracking-widest text-emerald-900/50">Format</span>
                 <div className="flex items-center gap-2">
-                  <div className="flex bg-emerald-955/5 p-0.5 rounded-xl border border-emerald-900/10 gap-0.5">
+                  <div className="flex bg-emerald-900/5 p-0.5 rounded-xl border border-emerald-900/10 gap-0.5">
                     <button 
                       onClick={() => setBillFormat('standard')}
                       className={`px-3.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all ${billFormat === 'standard' ? 'bg-emerald-900 text-white shadow-sm' : 'text-emerald-900/60 hover:text-emerald-950'}`}
@@ -407,30 +417,30 @@ export default function POSPage() {
               
               {/* Standard Format */}
               {billFormat === 'standard' && (
-                <div className="font-poppins text-emerald-955 space-y-6 text-sm">
+                <div className="font-poppins text-emerald-900 space-y-6 text-sm">
                   <div className="text-center border-b border-emerald-900/10 pb-4">
-                    <h2 className="font-limelight text-3xl tracking-tighter uppercase text-emerald-955 leading-none">Ninjaro✧</h2>
+                    <h2 className="font-limelight text-3xl tracking-tighter uppercase text-emerald-900 leading-none">Ninjaro✧</h2>
                     <p className="text-[10px] text-emerald-900/50 uppercase tracking-widest font-black mt-1">Premium Mocktail Brand</p>
                     <p className="text-[9px] text-emerald-900/40 uppercase tracking-widest mt-1">Cash Receipt</p>
                   </div>
 
                   <div className="grid grid-cols-2 gap-y-2 text-[10px] uppercase tracking-wider text-emerald-900/70 border-b border-emerald-900/5 pb-4">
-                    <div>Bill: <span className="font-black text-emerald-955">{receiptOrder!.id}</span></div>
-                    <div className="text-right">Date: <span className="font-black text-emerald-955">{receiptOrder!.date}</span></div>
-                    <div>Cashier: <span className="font-black text-emerald-955">Counter Desk</span></div>
-                    <div className="text-right">Mode: <span className="font-black text-emerald-955">{receiptOrder!.posPaymentMode}</span></div>
+                    <div>Bill: <span className="font-black text-emerald-900">{receiptOrder!.id}</span></div>
+                    <div className="text-right">Date: <span className="font-black text-emerald-900">{receiptOrder!.date}</span></div>
+                    <div>Cashier: <span className="font-black text-emerald-900">Counter Desk</span></div>
+                    <div className="text-right">Mode: <span className="font-black text-emerald-900">{receiptOrder!.posPaymentMode}</span></div>
                     {receiptOrder!.customerName && (
-                      <div className="col-span-2">Customer: <span className="font-black text-emerald-955">{receiptOrder!.customerName}</span></div>
+                      <div className="col-span-2">Customer: <span className="font-black text-emerald-900">{receiptOrder!.customerName}</span></div>
                     )}
                     {receiptOrder!.posCustomerPhone && (
-                      <div className="col-span-2">Phone: <span className="font-black text-emerald-955">{receiptOrder!.posCustomerPhone}</span></div>
+                      <div className="col-span-2">Phone: <span className="font-black text-emerald-900">{receiptOrder!.posCustomerPhone}</span></div>
                     )}
                   </div>
 
                   <div className="space-y-3">
                     <table className="w-full text-left text-xs">
                       <thead>
-                        <tr className="bg-emerald-955/5 text-emerald-900/50 font-black uppercase tracking-widest text-[9px] border-b border-emerald-900/10">
+                        <tr className="bg-emerald-900/5 text-emerald-900/50 font-black uppercase tracking-widest text-[9px] border-b border-emerald-900/10">
                           <th className="py-2 px-1">Description</th>
                           <th className="py-2 text-center w-12">Qty</th>
                           <th className="py-2 text-right w-20">Price</th>
@@ -438,7 +448,7 @@ export default function POSPage() {
                       </thead>
                       <tbody className="divide-y divide-emerald-900/5">
                         {(receiptOrder!.items || []).map((item, idx) => (
-                          <tr key={idx} className="font-bold text-emerald-955">
+                          <tr key={idx} className="font-bold text-emerald-900">
                             <td className="py-2.5 px-1">{item.name}</td>
                             <td className="py-2.5 text-center text-emerald-900/60">×{item.quantity}</td>
                             <td className="py-2.5 text-right font-black">₹{item.price}/-</td>
@@ -467,7 +477,7 @@ export default function POSPage() {
                         <span>-₹{discountAmount}/-</span>
                       </div>
                     )}
-                    <div className="flex justify-between font-black text-emerald-955 text-sm border-t border-emerald-900/10 pt-2">
+                    <div className="flex justify-between font-black text-emerald-900 text-sm border-t border-emerald-900/10 pt-2">
                       <span>Grand Total:</span>
                       <span>₹{receiptOrder!.total}/-</span>
                     </div>

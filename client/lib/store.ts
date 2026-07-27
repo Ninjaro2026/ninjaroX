@@ -16,6 +16,7 @@ export interface Product {
   showInStorefront?: boolean;
   priority?: number;
   isBestSeller?: boolean;
+  images?: string[];
 }
 
 export interface OrderItem {

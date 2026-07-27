@@ -66,7 +66,11 @@ body {
   background-attachment: fixed;
   color: var(--color-on-surface); 
 }
-.material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+.material-symbols-outlined { 
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; 
+  user-select: none;
+  -webkit-user-select: none;
+}
 
 /* Apple Liquid Theme Glassmorphism */
 .glass-panel { 
@@ -87,6 +91,47 @@ body {
 
 .ambient-glow { box-shadow: 0 20px 40px rgba(0, 54, 38, 0.1); }
 .text-editorial-tight { letter-spacing: -0.02em; }
+
+/* Ultra-smooth Skeleton Shimmer Loading Animations */
+@keyframes skeleton-shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.animate-skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(6, 78, 59, 0.05) 0%,
+    rgba(6, 78, 59, 0.15) 50%,
+    rgba(6, 78, 59, 0.05) 100%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.6s infinite ease-in-out;
+}
+
+.animate-skeleton-light {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.2) 0%,
+    rgba(255, 255, 255, 0.5) 50%,
+    rgba(255, 255, 255, 0.2) 100%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.6s infinite ease-in-out;
+}
+
+@keyframes spinner-ring {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.animate-spin-ring {
+  animation: spinner-ring 1s cubic-bezier(0.55, 0.15, 0.45, 0.85) infinite;
+}
 
 /* Print styles for POS Billing Receipt */
 @media print {
@@ -169,4 +214,13 @@ body {
     color: #000000 !important;
     opacity: 1 !important;
   }
+}
+
+/* Hide scrollbar utility for sleek mobile breadcrumbs & carousels */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }

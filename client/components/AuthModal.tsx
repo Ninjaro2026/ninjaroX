@@ -53,10 +53,10 @@ export function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps) {
         {/* Close Button */}
         <button 
           onClick={onClose}
-          className="absolute top-6 right-6 w-9 h-9 rounded-full bg-emerald-950/5 hover:bg-emerald-950 hover:text-white flex items-center justify-center text-emerald-950/50 transition-all active:scale-95"
+          className="absolute top-6 right-6 w-9 h-9 rounded-full bg-zinc-200/60 hover:bg-zinc-300 flex items-center justify-center text-zinc-800 hover:text-black transition-all active:scale-95 select-none focus:outline-none"
           aria-label="Close auth modal"
         >
-          <span className="material-symbols-outlined text-lg">close</span>
+          <span className="material-symbols-outlined text-lg leading-none select-none">close</span>
         </button>
 
         <div className="space-y-6">
