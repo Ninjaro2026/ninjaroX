@@ -50,24 +50,26 @@ fastify.addHook('onResponse', (request, reply, done) => {
   done();
 });
 
-// Completely Unrestricted CORS (Allows anywhere, anything, any method, any header)
+// Completely Unrestricted CORS — allow anywhere, any header, any method
 fastify.register(cors, {
-  origin: (origin, cb) => cb(null, true),
+  origin: '*',
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS'],
   allowedHeaders: ['*'],
   exposedHeaders: ['*'],
-  credentials: true,
-  maxAge: 86400
+  credentials: false,
+  preflightContinue: false,
+  optionsSuccessStatus: 204
 });
 
-// Hook to guarantee CORS headers on every single request & instant OPTIONS response
+// Force CORS headers on every response BEFORE Vercel can issue redirects
 fastify.addHook('onRequest', async (request, reply) => {
-  reply.header('Access-Control-Allow-Origin', '*');
-  reply.header('Access-Control-Allow-Methods', '*');
-  reply.header('Access-Control-Allow-Headers', '*');
-  reply.header('Access-Control-Allow-Credentials', 'true');
+  reply.raw.setHeader('Access-Control-Allow-Origin', '*');
+  reply.raw.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, HEAD, OPTIONS');
+  reply.raw.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, X-API-Key');
+  // Immediately handle preflight — never allow Vercel to redirect an OPTIONS request
   if (request.method === 'OPTIONS') {
-    return reply.status(204).send();
+    reply.raw.statusCode = 204;
+    reply.raw.end();
   }
 });
 
