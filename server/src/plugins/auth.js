@@ -4,7 +4,7 @@ const User = require('../models/User');
 
 async function authPlugin(fastify, opts) {
   fastify.register(jwt, {
-    secret: process.env.JWT_SECRET || 'supersecretjwtkeyforninjarobrandjwt',
+    secret: process.env.JWT_SECRET,
     sign: {
       expiresIn: process.env.JWT_ACCESS_EXPIRES_IN || '15d'
     }

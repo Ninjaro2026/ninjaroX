@@ -19,6 +19,7 @@ const connectDB = require('./src/config/db');
 // Models
 const User = require('./src/models/User');
 const Order = require('./src/models/Order');
+const Product = require('./src/models/Product');
 
 // Compact logging hook
 fastify.addHook('onResponse', (request, reply, done) => {
@@ -61,6 +62,7 @@ fastify.register(require('./src/plugins/auth'));
 fastify.register(require('./src/routes/auth'), { prefix: '/api/auth' });
 fastify.register(require('./src/routes/products'), { prefix: '/api/products' });
 fastify.register(require('./src/routes/orders'), { prefix: '/api/orders' });
+fastify.register(require('./src/routes/upload'), { prefix: '/api/upload' });
 
 async function seedData() {
   try {
@@ -111,7 +113,7 @@ async function seedData() {
     if (ordersWithNoItems.length > 0) {
       const defaultProduct = await Product.findOne();
       const defaultProductName = defaultProduct ? defaultProduct.name : 'Premium Classic Mocktail';
-      const defaultProductImg = defaultProduct ? defaultProduct.imageSrc : '/combo1.png';
+      const defaultProductImg = defaultProduct ? defaultProduct.imageSrc : '/combo1.jpeg';
 
       for (const order of ordersWithNoItems) {
         order.items = [{
@@ -124,6 +126,45 @@ async function seedData() {
       }
       console.log(`\x1b[32m  ✦ Corrected ${ordersWithNoItems.length} historical orders missing items array\x1b[0m`);
     }
+
+    // 4. Convert all .png product and order image references to .jpeg in DB and ensure files exist
+    const path = require('path');
+    const fs = require('fs');
+    const publicDir = path.join(__dirname, '../client/public');
+
+    if (fs.existsSync(publicDir)) {
+      const publicFiles = fs.readdirSync(publicDir);
+      for (const file of publicFiles) {
+        if (file.toLowerCase().endsWith('.png')) {
+          const pngPath = path.join(publicDir, file);
+          const jpegName = file.replace(/\.png$/i, '.jpeg');
+          const jpegPath = path.join(publicDir, jpegName);
+          if (!fs.existsSync(jpegPath)) {
+            fs.copyFileSync(pngPath, jpegPath);
+            console.log(`\x1b[32m  ✦ Copied public file:\x1b[0m ${file} -> ${jpegName}`);
+          }
+        }
+      }
+    }
+
+    const allProds = await Product.find({ imageSrc: /\.png$/i });
+    for (const p of allProds) {
+      p.imageSrc = p.imageSrc.replace(/\.png$/i, '.jpeg');
+      await p.save();
+      console.log(`\x1b[32m  ✦ Updated product DB image:\x1b[0m ${p.name} -> ${p.imageSrc}`);
+    }
+
+    const allOrders = await Order.find({ 'items.img': /\.png$/i });
+    for (const o of allOrders) {
+      let modified = false;
+      o.items.forEach(item => {
+        if (item.img && item.img.endsWith('.png')) {
+          item.img = item.img.replace(/\.png$/i, '.jpeg');
+          modified = true;
+        }
+      });
+      if (modified) await o.save();
+    }
   } catch (err) {
     console.error(`\x1b[31m  ✗ Data seeding failed: ${err.message}\x1b[0m`);
   }
@@ -132,7 +173,10 @@ async function seedData() {
 // Start Server
 const start = async () => {
   try {
-    const mongoUri = process.env.MONGO_URI || 'mongodb+srv://ninjaroin_db_user:moc21G1lwsoPfAMN@cluster0.1cdpz4o.mongodb.net/ninjaro?appName=Cluster0';
+    const mongoUri = process.env.MONGO_URI;
+    if (!mongoUri) {
+      throw new Error('MONGO_URI environment variable is missing.');
+    }
     await connectDB(mongoUri);
     console.log(`\n\x1b[1m\x1b[32m[Database]\x1b[0m MongoDB connection established successfully.`);
     await seedData();

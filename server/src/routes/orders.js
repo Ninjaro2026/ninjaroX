@@ -5,8 +5,8 @@ const crypto = require('crypto');
 
 // Initialize Razorpay SDK
 const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID || 'rzp_test_glhF13Fdod0C1P',
-  key_secret: process.env.RAZORPAY_KEY_SECRET || 'zEFHvSNSX7bSzm8n8Ph8z11f'
+  key_id: process.env.RAZORPAY_KEY_ID,
+  key_secret: process.env.RAZORPAY_KEY_SECRET
 });
 
 async function orderRoutes(fastify, opts) {
@@ -58,7 +58,7 @@ async function orderRoutes(fastify, opts) {
         id: rzpOrder.id,
         amount: rzpOrder.amount,
         currency: rzpOrder.currency,
-        key: process.env.RAZORPAY_KEY_ID || 'rzp_test_glhF13Fdod0C1P'
+        key: process.env.RAZORPAY_KEY_ID
       };
     } catch (err) {
       return reply.code(500).send({ error: err.message });
@@ -173,7 +173,7 @@ async function orderRoutes(fastify, opts) {
         name: item.name,
         quantity: item.quantity,
         price: item.price,
-        img: item.img || '/combo1.png'
+        img: item.img || '/combo1.jpeg'
       }));
 
       await newOrder.save();
