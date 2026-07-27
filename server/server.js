@@ -183,16 +183,15 @@ async function seedData() {
   }
 }
 
-// Start Server
+// Start Server for Local Development
 const start = async () => {
   try {
     const mongoUri = process.env.MONGO_URI;
-    if (!mongoUri) {
-      throw new Error('MONGO_URI environment variable is missing.');
+    if (mongoUri) {
+      await connectDB(mongoUri);
+      console.log(`\n\x1b[1m\x1b[32m[Database]\x1b[0m MongoDB connection established successfully.`);
+      await seedData();
     }
-    await connectDB(mongoUri);
-    console.log(`\n\x1b[1m\x1b[32m[Database]\x1b[0m MongoDB connection established successfully.`);
-    await seedData();
     
     const port = process.env.PORT;
     const serverUrl = process.env.SERVER_URL;
@@ -213,4 +212,23 @@ const start = async () => {
   }
 };
 
-start();
+// Vercel Serverless Function Export
+let isConnected = false;
+const handler = async (req, res) => {
+  if (!isConnected) {
+    const mongoUri = process.env.MONGO_URI;
+    if (mongoUri) {
+      await connectDB(mongoUri);
+      isConnected = true;
+    }
+  }
+  await fastify.ready();
+  fastify.server.emit('request', req, res);
+};
+
+if (!process.env.VERCEL) {
+  start();
+}
+
+module.exports = handler;
+module.exports.default = handler;
