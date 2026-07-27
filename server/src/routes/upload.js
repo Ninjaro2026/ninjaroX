@@ -198,10 +198,16 @@ async function uploadRoutes(fastify, opts) {
       }
 
       return reply.type('text/html').send(`
-        <div style="font-family: system-ui, sans-serif; padding: 40px; text-align: center; max-width: 600px; margin: 40px auto; border-radius: 24px; border: 2px solid #10b981; background: #f0fdf4;">
+        <div style="font-family: system-ui, sans-serif; padding: 40px; max-width: 700px; margin: 40px auto; border-radius: 24px; border: 2px solid #10b981; background: #f0fdf4;">
           <h1 style="color: #065f46; font-size: 24px; margin-bottom: 8px;">Google Drive Authorization Successful! 🎉</h1>
-          <p style="color: #047857; font-size: 14px; line-height: 1.6;">Your account has authorized Google Drive photo uploads for Ninjaro.</p>
-          <p style="color: #065f46; font-weight: bold; margin-top: 16px;">You can now close this tab and upload photos in your Catalog Manager!</p>
+          <p style="color: #047857; font-size: 14px;">Your account has authorized Google Drive photo uploads for Ninjaro.</p>
+          
+          <div style="margin-top: 24px; padding: 20px; background: #fff; border: 2px solid #d1fae5; border-radius: 12px;">
+            <p style="font-weight: bold; color: #065f46; margin: 0 0 8px 0; font-size: 13px;">⚠️ IMPORTANT: Copy this Refresh Token and add it to Vercel Environment Variables</p>
+            <p style="font-size: 11px; color: #6b7280; margin: 0 0 12px 0;">Variable name: <code style="background:#f3f4f6;padding:2px 6px;border-radius:4px;">GDRIVE_OAUTH_REFRESH_TOKEN</code></p>
+            <textarea readonly style="width:100%;height:80px;font-family:monospace;font-size:11px;padding:10px;border:1px solid #d1d5db;border-radius:8px;background:#f9fafb;resize:none;box-sizing:border-box;">${tokenData.refresh_token}</textarea>
+            <p style="font-size: 11px; color: #6b7280; margin: 12px 0 0 0;">After adding to Vercel → Redeploy the backend → You're done!</p>
+          </div>
         </div>
       `);
     } else {
