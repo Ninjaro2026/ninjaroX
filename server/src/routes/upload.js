@@ -2,12 +2,11 @@ const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 
-let userRefreshToken = process.env.GDRIVE_OAUTH_REFRESH_TOKEN;
-
 async function getAccessToken() {
   const clientId = process.env.GDRIVE_OAUTH_CLIENT_ID;
   const clientSecret = process.env.GDRIVE_OAUTH_CLIENT_SECRET;
-  const currentRefreshToken = userRefreshToken;
+  // Always read from process.env at call time — never cache at module level (breaks Vercel serverless)
+  const currentRefreshToken = process.env.GDRIVE_OAUTH_REFRESH_TOKEN;
 
   if (currentRefreshToken && clientId && clientSecret) {
     const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
@@ -179,23 +178,8 @@ async function uploadRoutes(fastify, opts) {
 
     const tokenData = await tokenRes.json();
     if (tokenRes.ok && tokenData.refresh_token) {
-      userRefreshToken = tokenData.refresh_token;
-
-      // Automatically append GDRIVE_OAUTH_REFRESH_TOKEN to server/.env
-      try {
-        const envPath = path.join(__dirname, '../../.env');
-        if (fs.existsSync(envPath)) {
-          let envContent = fs.readFileSync(envPath, 'utf8');
-          if (envContent.includes('GDRIVE_OAUTH_REFRESH_TOKEN=')) {
-            envContent = envContent.replace(/GDRIVE_OAUTH_REFRESH_TOKEN=.*/, `GDRIVE_OAUTH_REFRESH_TOKEN="${userRefreshToken}"`);
-          } else {
-            envContent += `\nGDRIVE_OAUTH_REFRESH_TOKEN="${userRefreshToken}"\n`;
-          }
-          fs.writeFileSync(envPath, envContent);
-        }
-      } catch (err) {
-        console.error('Failed to update .env with refresh token:', err);
-      }
+      // NOTE: On Vercel (serverless), we cannot write to .env or persist env vars at runtime.
+      // The refresh token is displayed below — copy it to Vercel Environment Variables manually.
 
       return reply.type('text/html').send(`
         <div style="font-family: system-ui, sans-serif; padding: 40px; max-width: 700px; margin: 40px auto; border-radius: 24px; border: 2px solid #10b981; background: #f0fdf4;">
