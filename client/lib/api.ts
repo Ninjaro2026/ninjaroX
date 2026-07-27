@@ -1,9 +1,7 @@
-const getApiBaseUrl = () => {
-  const rawUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
-  return rawUrl.endsWith('/') ? rawUrl.slice(0, -1) : rawUrl;
-};
-
-const API_BASE_URL = getApiBaseUrl();
+// All API calls go to /api/* (same-origin).
+// Next.js server-side proxy (next.config.ts) forwards them to the backend.
+// This completely eliminates CORS — the browser never contacts the backend directly.
+const API_BASE_URL = '/api';
 
 export function getAuthToken(): string | null {
   if (typeof window === 'undefined') return null;
