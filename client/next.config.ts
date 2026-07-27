@@ -5,7 +5,7 @@ const nextConfig: NextConfig = {
     return [
       {
         source: "/api/:path*",
-        destination: "https://ninjaro-x-or1s-hbdiel76e-ninjaro.vercel.app/api/:path*",
+        destination: "https://ninjaro-x-zcvj.vercel.app/api/:path*",
       },
     ];
   },
