@@ -3,10 +3,9 @@ const fs = require('fs');
 const path = require('path');
 
 async function getAccessToken() {
-  const clientId = process.env.GDRIVE_OAUTH_CLIENT_ID;
-  const clientSecret = process.env.GDRIVE_OAUTH_CLIENT_SECRET;
-  // Always read from process.env at call time — never cache at module level (breaks Vercel serverless)
-  const currentRefreshToken = process.env.GDRIVE_OAUTH_REFRESH_TOKEN;
+  const clientId = (process.env.GDRIVE_OAUTH_CLIENT_ID || '').trim().replace(/^["']|["']$/g, '');
+  const clientSecret = (process.env.GDRIVE_OAUTH_CLIENT_SECRET || '').trim().replace(/^["']|["']$/g, '');
+  const currentRefreshToken = (process.env.GDRIVE_OAUTH_REFRESH_TOKEN || '').trim().replace(/^["']|["']$/g, '');
 
   if (currentRefreshToken && clientId && clientSecret) {
     const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
@@ -24,7 +23,7 @@ async function getAccessToken() {
     if (tokenRes.ok && tokenData.access_token) {
       return tokenData.access_token;
     } else {
-      throw new Error(`Google OAuth token exchange failed: ${tokenData.error_description || tokenData.error || JSON.stringify(tokenData)}`);
+      throw new Error(`Google OAuth token exchange failed: ${JSON.stringify(tokenData)}`);
     }
   }
 
@@ -131,17 +130,42 @@ async function uploadFileToDrive(fileBuffer, mimeType, filename) {
 async function uploadRoutes(fastify, opts) {
   // OAuth Status Diagnostic Endpoint
   fastify.get('/status', async (request, reply) => {
-    const clientId = process.env.GDRIVE_OAUTH_CLIENT_ID;
-    const clientSecret = process.env.GDRIVE_OAUTH_CLIENT_SECRET;
-    const refreshToken = process.env.GDRIVE_OAUTH_REFRESH_TOKEN;
-    const folderId = process.env.GDRIVE_FOLDER_ID;
+    const clientId = (process.env.GDRIVE_OAUTH_CLIENT_ID || '').trim().replace(/^["']|["']$/g, '');
+    const clientSecret = (process.env.GDRIVE_OAUTH_CLIENT_SECRET || '').trim().replace(/^["']|["']$/g, '');
+    const refreshToken = (process.env.GDRIVE_OAUTH_REFRESH_TOKEN || '').trim().replace(/^["']|["']$/g, '');
+    const folderId = (process.env.GDRIVE_FOLDER_ID || '').trim().replace(/^["']|["']$/g, '');
+
+    let tokenTestResult = 'Not tested';
+    if (refreshToken && clientId && clientSecret) {
+      try {
+        const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: new URLSearchParams({
+            client_id: clientId,
+            client_secret: clientSecret,
+            refresh_token: refreshToken,
+            grant_type: 'refresh_token'
+          })
+        });
+        const tokenData = await tokenRes.json();
+        if (tokenRes.ok && tokenData.access_token) {
+          tokenTestResult = 'SUCCESS! Valid OAuth Access Token obtained.';
+        } else {
+          tokenTestResult = `FAILED (${tokenRes.status}): ${JSON.stringify(tokenData)}`;
+        }
+      } catch (err) {
+        tokenTestResult = `ERROR: ${err.message}`;
+      }
+    }
 
     return {
       hasClientId: !!clientId,
       hasClientSecret: !!clientSecret,
       hasRefreshToken: !!refreshToken,
       hasFolderId: !!folderId,
-      refreshTokenPrefix: refreshToken ? `${refreshToken.substring(0, 10)}...` : null
+      refreshTokenPrefix: refreshToken ? `${refreshToken.substring(0, 10)}...` : null,
+      tokenTestResult
     };
   });
 
