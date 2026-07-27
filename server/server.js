@@ -50,10 +50,13 @@ fastify.addHook('onResponse', (request, reply, done) => {
   done();
 });
 
-// Plugins
+// Universal CORS Plugin Configuration (Allows all domains, headers, and methods)
 fastify.register(cors, {
-  origin: '*', // For development - allows all origins
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS']
+  origin: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Origin', 'X-Requested-With', 'Content-Type', 'Accept', 'Authorization'],
+  credentials: true,
+  maxAge: 86400
 });
 
 fastify.register(require('./src/plugins/auth'));
