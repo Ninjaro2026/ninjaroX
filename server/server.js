@@ -74,8 +74,8 @@ async function seedData() {
     // const customerPurge = await User.deleteMany({ role: { $ne: 'admin' } });
 
     // 1. Seed Admin User
-    const adminEmail = process.env.ADMIN_EMAIL || 'admin@ninjaro.com';
-    const adminPassword = process.env.ADMIN_PASSWORD || 'AdminNinjaro2026!';
+    const adminEmail = process.env.ADMIN_EMAIL;
+    const adminPassword = process.env.ADMIN_PASSWORD;
     
     const adminExists = await User.findOne({ email: adminEmail });
     if (!adminExists) {
@@ -184,14 +184,15 @@ const start = async () => {
     console.log(`\n\x1b[1m\x1b[32m[Database]\x1b[0m MongoDB connection established successfully.`);
     await seedData();
     
-    const port = process.env.PORT || 5000;
-    await fastify.listen({ port, host: '0.0.0.0' });
+    const port = process.env.PORT;
+    const serverUrl = process.env.SERVER_URL;
+    await fastify.listen({ port: port ? Number(port) : 5000, host: '0.0.0.0' });
     console.log(`
 \x1b[1m\x1b[35m┌────────────────────────────────────────────────────────┐
 │                                                        │
 │  \x1b[32m✦ NINJARO BACKEND API SERVER RUNNING\x1b[35m                  │
 │                                                        │
-│  - Storefront API:   \x1b[36mhttp://localhost:${port}/api\x1b[35m              │
+│  - Storefront API:   \x1b[36m${serverUrl}/api\x1b[35m              │
 │  - Active Node Env:  \x1b[33mdevelopment\x1b[35m                       │
 │                                                        │
 └────────────────────────────────────────────────────────┘\x1b[0m

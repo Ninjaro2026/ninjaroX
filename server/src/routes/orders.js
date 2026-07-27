@@ -103,7 +103,7 @@ async function orderRoutes(fastify, opts) {
         }
 
         const generatedSignature = crypto
-          .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET || 'zEFHvSNSX7bSzm8n8Ph8z11f')
+          .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET)
           .update(razorpayOrderId + "|" + razorpayPaymentId)
           .digest('hex');
 

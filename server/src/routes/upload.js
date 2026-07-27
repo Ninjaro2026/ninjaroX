@@ -2,12 +2,12 @@ const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 
-let userRefreshToken = process.env.GDRIVE_OAUTH_REFRESH_TOKEN || '';
+let userRefreshToken = process.env.GDRIVE_OAUTH_REFRESH_TOKEN;
 
 async function getAccessToken() {
   const clientId = process.env.GDRIVE_OAUTH_CLIENT_ID;
   const clientSecret = process.env.GDRIVE_OAUTH_CLIENT_SECRET;
-  const currentRefreshToken = userRefreshToken || process.env.GDRIVE_OAUTH_REFRESH_TOKEN;
+  const currentRefreshToken = userRefreshToken;
 
   if (currentRefreshToken && clientId && clientSecret) {
     const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
@@ -139,7 +139,7 @@ async function uploadRoutes(fastify, opts) {
   // OAuth 2.0 Authorization Link Endpoint
   fastify.get('/auth', async (request, reply) => {
     const clientId = process.env.GDRIVE_OAUTH_CLIENT_ID;
-    const redirectUri = process.env.GDRIVE_OAUTH_REDIRECT_URI || `${process.env.SERVER_URL || 'http://localhost:5000'}/api/upload/oauth2callback`;
+    const redirectUri = process.env.GDRIVE_OAUTH_REDIRECT_URI;
     
     if (!clientId) {
       return reply.code(500).send({ error: 'GDRIVE_OAUTH_CLIENT_ID missing in environment variables.' });
@@ -159,7 +159,7 @@ async function uploadRoutes(fastify, opts) {
 
     const clientId = process.env.GDRIVE_OAUTH_CLIENT_ID;
     const clientSecret = process.env.GDRIVE_OAUTH_CLIENT_SECRET;
-    const redirectUri = process.env.GDRIVE_OAUTH_REDIRECT_URI || `${process.env.SERVER_URL || 'http://localhost:5000'}/api/upload/oauth2callback`;
+    const redirectUri = process.env.GDRIVE_OAUTH_REDIRECT_URI;
 
     if (!clientId || !clientSecret) {
       return reply.code(500).type('text/html').send('<h2>OAuth configuration missing in environment variables.</h2>');
