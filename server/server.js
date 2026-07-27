@@ -50,23 +50,25 @@ fastify.addHook('onResponse', (request, reply, done) => {
   done();
 });
 
-// Universal CORS Plugin Configuration (Allows all domains, headers, and methods)
+// Completely Unrestricted CORS (Allows anywhere, anything, any method, any header)
 fastify.register(cors, {
-  origin: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Origin', 'X-Requested-With', 'Content-Type', 'Accept', 'Authorization'],
+  origin: (origin, cb) => cb(null, true),
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS'],
+  allowedHeaders: ['*'],
+  exposedHeaders: ['*'],
   credentials: true,
   maxAge: 86400
 });
 
-// Explicit OPTIONS preflight route handler to prevent 308 redirects on Vercel
-fastify.options('*', (request, reply) => {
-  reply
-    .header('Access-Control-Allow-Origin', '*')
-    .header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS')
-    .header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization')
-    .status(204)
-    .send();
+// Hook to guarantee CORS headers on every single request & instant OPTIONS response
+fastify.addHook('onRequest', async (request, reply) => {
+  reply.header('Access-Control-Allow-Origin', '*');
+  reply.header('Access-Control-Allow-Methods', '*');
+  reply.header('Access-Control-Allow-Headers', '*');
+  reply.header('Access-Control-Allow-Credentials', 'true');
+  if (request.method === 'OPTIONS') {
+    return reply.status(204).send();
+  }
 });
 
 fastify.register(require('./src/plugins/auth'));
@@ -215,15 +217,35 @@ const start = async () => {
 // Vercel Serverless Function Export
 let isConnected = false;
 const handler = async (req, res) => {
-  if (!isConnected) {
-    const mongoUri = process.env.MONGO_URI;
-    if (mongoUri) {
-      await connectDB(mongoUri);
-      isConnected = true;
-    }
+  // Always attach CORS headers to all responses immediately
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
+  res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization');
+
+  // Finish OPTIONS preflight immediately with 204 No Content
+  if (req.method === 'OPTIONS') {
+    res.statusCode = 204;
+    res.end();
+    return;
   }
-  await fastify.ready();
-  fastify.server.emit('request', req, res);
+
+  try {
+    if (!isConnected) {
+      const mongoUri = process.env.MONGO_URI;
+      if (mongoUri) {
+        await connectDB(mongoUri);
+        isConnected = true;
+      }
+    }
+    await fastify.ready();
+    fastify.server.emit('request', req, res);
+  } catch (err) {
+    console.error('Vercel Handler Exception:', err);
+    res.statusCode = 500;
+    res.setHeader('Content-Type', 'application/json');
+    res.end(JSON.stringify({ error: err.message || 'Internal Server Error' }));
+  }
 };
 
 if (!process.env.VERCEL) {
