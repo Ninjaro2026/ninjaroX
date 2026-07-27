@@ -24,17 +24,11 @@ async function getAccessToken() {
     if (tokenRes.ok && tokenData.access_token) {
       return tokenData.access_token;
     } else {
-      console.warn('OAuth refresh token exchange warning:', tokenData);
+      throw new Error(`Google OAuth token exchange failed: ${tokenData.error_description || tokenData.error || JSON.stringify(tokenData)}`);
     }
   }
 
-  // Fallback to Service Account JWT authentication if configured
-  const clientEmail = process.env.GDRIVE_CLIENT_EMAIL;
-  let privateKey = process.env.GDRIVE_PRIVATE_KEY;
-
-  if (!clientEmail || !privateKey) {
-    throw new Error('Google Drive API credentials not configured in environment variables.');
-  }
+  throw new Error(`Missing OAuth credentials on server. GDRIVE_OAUTH_REFRESH_TOKEN set? ${!!currentRefreshToken}, GDRIVE_OAUTH_CLIENT_ID set? ${!!clientId}, GDRIVE_OAUTH_CLIENT_SECRET set? ${!!clientSecret}`);
 
   privateKey = privateKey.replace(/\\n/g, '\n');
 
@@ -135,6 +129,22 @@ async function uploadFileToDrive(fileBuffer, mimeType, filename) {
 }
 
 async function uploadRoutes(fastify, opts) {
+  // OAuth Status Diagnostic Endpoint
+  fastify.get('/status', async (request, reply) => {
+    const clientId = process.env.GDRIVE_OAUTH_CLIENT_ID;
+    const clientSecret = process.env.GDRIVE_OAUTH_CLIENT_SECRET;
+    const refreshToken = process.env.GDRIVE_OAUTH_REFRESH_TOKEN;
+    const folderId = process.env.GDRIVE_FOLDER_ID;
+
+    return {
+      hasClientId: !!clientId,
+      hasClientSecret: !!clientSecret,
+      hasRefreshToken: !!refreshToken,
+      hasFolderId: !!folderId,
+      refreshTokenPrefix: refreshToken ? `${refreshToken.substring(0, 10)}...` : null
+    };
+  });
+
   // OAuth 2.0 Authorization Link Endpoint
   fastify.get('/auth', async (request, reply) => {
     const clientId = process.env.GDRIVE_OAUTH_CLIENT_ID;
