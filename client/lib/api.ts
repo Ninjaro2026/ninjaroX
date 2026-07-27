@@ -1,5 +1,5 @@
 const getApiBaseUrl = () => {
-  const rawUrl = process.env.NEXT_PUBLIC_API_URL || 'https://ninjaro-x-or1s-hbdiel76e-ninjaro.vercel.app/api';
+  const rawUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
   return rawUrl.endsWith('/') ? rawUrl.slice(0, -1) : rawUrl;
 };
 
