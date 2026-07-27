@@ -59,6 +59,16 @@ fastify.register(cors, {
   maxAge: 86400
 });
 
+// Explicit OPTIONS preflight route handler to prevent 308 redirects on Vercel
+fastify.options('*', (request, reply) => {
+  reply
+    .header('Access-Control-Allow-Origin', '*')
+    .header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS')
+    .header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization')
+    .status(204)
+    .send();
+});
+
 fastify.register(require('./src/plugins/auth'));
 
 // Register Routes
