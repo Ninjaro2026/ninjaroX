@@ -24,6 +24,7 @@ const ProductSchema = new mongoose.Schema({
   showInStorefront: { type: Boolean, default: true },
   priority: { type: Number },
   imageSrc: { type: String },
+  images: [{ type: String }],
   imageAlt: { type: String },
   topBgColor: { type: String },
   bottomBgColor: { type: String },
@@ -32,6 +33,9 @@ const ProductSchema = new mongoose.Schema({
   isCombo: { type: Boolean, default: false },
   comboItems: [ComboItemSchema],
   isBestSeller: { type: Boolean, default: false },
+  customTag: { type: String },
+  tagPosition: { type: String, default: 'bottom-left' },
+  tagColor: { type: String, default: 'black' },
   reviews: [ReviewSchema]
 }, { timestamps: true });
 

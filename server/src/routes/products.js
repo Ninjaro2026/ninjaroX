@@ -1,4 +1,5 @@
 const Product = require('../models/Product');
+const { deleteFileFromDrive } = require('./upload');
 
 async function productRoutes(fastify, opts) {
   // GET /api/products
@@ -47,6 +48,7 @@ async function productRoutes(fastify, opts) {
   fastify.put('/:id', { preHandler: [fastify.requireAdmin] }, async (request, reply) => {
     const { id } = request.params;
     try {
+      const existingProduct = await Product.findOne({ id });
       const updatedProduct = await Product.findOneAndUpdate(
         { id },
         { $set: request.body },
@@ -56,6 +58,27 @@ async function productRoutes(fastify, opts) {
       if (!updatedProduct) {
         return reply.code(404).send({ error: 'Product not found' });
       }
+
+      // Clean up orphaned images removed during edit
+      if (existingProduct) {
+        const oldImages = new Set([
+          ...(existingProduct.imageSrc ? [existingProduct.imageSrc] : []),
+          ...(Array.isArray(existingProduct.images) ? existingProduct.images : [])
+        ]);
+
+        const newImages = new Set([
+          ...(updatedProduct.imageSrc ? [updatedProduct.imageSrc] : []),
+          ...(Array.isArray(updatedProduct.images) ? updatedProduct.images : [])
+        ]);
+
+        const removedImages = Array.from(oldImages).filter(img => !newImages.has(img));
+        if (removedImages.length > 0) {
+          console.log(`[Product Update] Cleaning up ${removedImages.length} removed Google Drive image(s)...`);
+          Promise.all(removedImages.map(imgUrl => deleteFileFromDrive(imgUrl)))
+            .catch(err => console.warn('[Product Update] Drive cleanup error:', err));
+        }
+      }
+
       return updatedProduct;
     } catch (err) {
       return reply.code(500).send({ error: err.message });
@@ -70,7 +93,36 @@ async function productRoutes(fastify, opts) {
       if (!result) {
         return reply.code(404).send({ error: 'Product not found' });
       }
-      return { success: true, message: 'Product deleted successfully' };
+
+      // Collect all image URLs associated with this product
+      const imagesToDelete = new Set();
+      if (result.imageSrc) imagesToDelete.add(result.imageSrc);
+      if (Array.isArray(result.images)) {
+        result.images.forEach(img => {
+          if (img) imagesToDelete.add(img);
+        });
+      }
+
+      // Synchronously await deletion of all associated files from Google Drive
+      const driveErrors = [];
+      if (imagesToDelete.size > 0) {
+        console.log(`[Product Delete] Synchronously cleaning up ${imagesToDelete.size} Google Drive image(s) for product ${id}...`);
+        const results = await Promise.allSettled(Array.from(imagesToDelete).map(imgUrl => deleteFileFromDrive(imgUrl)));
+        results.forEach(res => {
+          if (res.status === 'rejected') {
+            driveErrors.push(res.reason?.message || 'Drive deletion failed');
+          }
+        });
+      }
+
+      if (driveErrors.length > 0) {
+        return reply.code(200).send({ 
+          success: true, 
+          warning: `Product deleted, but Google Drive image deletion failed: ${driveErrors.join('; ')}`
+        });
+      }
+
+      return { success: true, message: 'Product and associated Google Drive images deleted successfully' };
     } catch (err) {
       return reply.code(500).send({ error: err.message });
     }

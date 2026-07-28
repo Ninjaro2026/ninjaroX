@@ -122,9 +122,66 @@ async function uploadFileToDrive(fileBuffer, mimeType, filename) {
     console.warn('Google Drive set permission warning:', permData);
   }
 
-  // Direct image URL for <img> tags
-  const directUrl = `https://lh3.googleusercontent.com/d/${fileId}`;
-  return { fileId, url: directUrl };
+  // Official Google Drive thumbnail URL (100% publicly embeddable in <img> tags)
+  const thumbnailUrl = `https://drive.google.com/thumbnail?id=${fileId}&sz=w1000`;
+  return { fileId, url: thumbnailUrl };
+}
+
+function extractGoogleDriveFileId(urlOrId) {
+  if (!urlOrId || typeof urlOrId !== 'string') return null;
+  
+  const thumbnailMatch = urlOrId.match(/drive\.google\.com\/thumbnail\?id=([a-zA-Z0-9_-]+)/);
+  if (thumbnailMatch) return thumbnailMatch[1];
+
+  const proxyMatch = urlOrId.match(/\/api\/upload\/file\/([a-zA-Z0-9_-]+)/);
+  if (proxyMatch) return proxyMatch[1];
+
+  const lh3Match = urlOrId.match(/lh3\.googleusercontent\.com\/d\/([a-zA-Z0-9_-]+)/);
+  if (lh3Match) return lh3Match[1];
+
+  const ucMatch = urlOrId.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+  if (ucMatch) return ucMatch[1];
+
+  const fileMatch = urlOrId.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+  if (fileMatch) return fileMatch[1];
+
+  if (/^[a-zA-Z0-9_-]{25,}$/.test(urlOrId.trim())) {
+    return urlOrId.trim();
+  }
+
+  return null;
+}
+
+async function deleteFileFromDrive(fileUrlOrId) {
+  const fileId = extractGoogleDriveFileId(fileUrlOrId);
+  if (!fileId) {
+    console.log(`[Drive Delete] Skipping non-Drive URL or invalid ID: "${fileUrlOrId}"`);
+    return false;
+  }
+
+  try {
+    console.log(`[Drive Delete] Attempting to delete Google Drive fileId: ${fileId}...`);
+    const accessToken = await getAccessToken();
+    const deleteRes = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?supportsAllDrives=true&supportsTeamDrives=true`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`
+      }
+    });
+
+    if (deleteRes.ok || deleteRes.status === 204 || deleteRes.status === 404) {
+      console.log(`[Drive Delete] Successfully deleted file ${fileId} from Google Drive.`);
+      return true;
+    } else {
+      const deleteData = await deleteRes.json().catch(() => ({}));
+      const errorMsg = deleteData.error?.message || `Google Drive API returned status ${deleteRes.status}`;
+      console.warn(`[Drive Delete] Google Drive API delete failed for ${fileId} (${deleteRes.status}):`, deleteData);
+      throw new Error(`Google Drive API deletion failed (${deleteRes.status}): ${errorMsg}`);
+    }
+  } catch (err) {
+    console.warn(`[Drive Delete] Error deleting file ${fileId} from Google Drive:`, err.message);
+    throw err;
+  }
 }
 
 async function uploadRoutes(fastify, opts) {
@@ -212,9 +269,6 @@ async function uploadRoutes(fastify, opts) {
 
     const tokenData = await tokenRes.json();
     if (tokenRes.ok && tokenData.refresh_token) {
-      // NOTE: On Vercel (serverless), we cannot write to .env or persist env vars at runtime.
-      // The refresh token is displayed below — copy it to Vercel Environment Variables manually.
-
       return reply.type('text/html').send(`
         <div style="font-family: system-ui, sans-serif; padding: 40px; max-width: 700px; margin: 40px auto; border-radius: 24px; border: 2px solid #10b981; background: #f0fdf4;">
           <h1 style="color: #065f46; font-size: 24px; margin-bottom: 8px;">Google Drive Authorization Successful! 🎉</h1>
@@ -266,6 +320,51 @@ async function uploadRoutes(fastify, opts) {
       return reply.code(500).send({ error: err.message });
     }
   });
+
+  // Fastify delete route for images from Google Drive
+  fastify.delete('/drive', async (request, reply) => {
+    try {
+      const { url, urls } = request.body || {};
+      const targetUrls = Array.isArray(urls) ? urls : (url ? [url] : []);
+      if (targetUrls.length === 0) {
+        return reply.code(400).send({ error: 'No image URL or URLs provided for deletion.' });
+      }
+
+      const results = await Promise.all(targetUrls.map(u => deleteFileFromDrive(u)));
+      return { success: true, deletedCount: results.filter(Boolean).length };
+    } catch (err) {
+      console.error('Google Drive Delete Route Error:', err);
+      return reply.code(500).send({ error: err.message });
+    }
+  });
+  // Fastify image proxy route streaming Google Drive images via OAuth (100% reliable rendering)
+  fastify.get('/file/:fileId', async (request, reply) => {
+    const { fileId } = request.params;
+    try {
+      const accessToken = await getAccessToken();
+      const driveRes = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
+        headers: { 'Authorization': `Bearer ${accessToken}` }
+      });
+
+      if (!driveRes.ok) {
+        return reply.code(driveRes.status).send({ error: 'Failed to fetch image binary from Google Drive' });
+      }
+
+      const contentType = driveRes.headers.get('content-type') || 'image/jpeg';
+      const buffer = await driveRes.arrayBuffer();
+
+      return reply
+        .header('Content-Type', contentType)
+        .header('Cache-Control', 'public, max-age=31536000, immutable')
+        .send(Buffer.from(buffer));
+    } catch (err) {
+      console.error('Image Proxy Route Error:', err);
+      return reply.code(500).send({ error: err.message });
+    }
+  });
 }
+
+uploadRoutes.extractGoogleDriveFileId = extractGoogleDriveFileId;
+uploadRoutes.deleteFileFromDrive = deleteFileFromDrive;
 
 module.exports = uploadRoutes;
