@@ -62,8 +62,7 @@
 
 body { 
   font-family: 'Poppins', sans-serif; 
-  background: linear-gradient(135deg, #e0f8ea 0%, #c1fee2 50%, #f0fdf6 100%);
-  background-attachment: fixed;
+  background-color: #ffffff;
   color: var(--color-on-surface); 
 }
 .material-symbols-outlined { 

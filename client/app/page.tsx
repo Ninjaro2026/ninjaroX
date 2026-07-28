@@ -192,18 +192,20 @@ export default function Home() {
         onSearchChange={setSearchQuery}
       />
 
-      <main>
+      <main className="w-full min-h-screen bg-white">
 {/* Storefront Left-aligned Promo Tag & Entrance Anchor */}
-<div id="storefront" className="max-w-screen-2xl mx-auto px-4 sm:px-6 md:px-12 pt-4 pb-2 bg-white animate-fade-in">
-  <div className="inline-flex bg-neutral-950 text-white text-[9px] sm:text-xs font-black uppercase px-4 py-2 rounded-sm shadow-xs tracking-wider items-center gap-1.5 select-none">
-    <span>🎁 Free Shipping Order Above ₹249 & Apply 5% Discount on Checkout</span>
+<div id="storefront" className="w-full bg-white animate-fade-in">
+  <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 md:px-12 pt-4 pb-2">
+    <div className="inline-flex bg-neutral-950 text-white text-[9px] sm:text-xs font-black uppercase px-4 py-2 rounded-sm shadow-xs tracking-wider items-center gap-1.5 select-none">
+      <span>🎁 Free Shipping Order Above ₹249 & Apply 5% Discount on Checkout</span>
+    </div>
   </div>
 </div>
 {isLoadingProducts ? (
-  <section className="py-12 md:py-16 px-4 sm:px-6 md:px-12 font-poppins bg-white">
+  <section className="py-12 md:py-16 px-4 sm:px-6 md:px-12 font-poppins bg-white w-full">
     <div className="max-w-screen-2xl mx-auto space-y-8">
       <StorefrontLoader title="Crafting Botanical Flavors..." subtitle="Fetching catalog premixes" />
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4 md:gap-6">
         <ProductCardSkeleton />
         <ProductCardSkeleton />
         <ProductCardSkeleton />
@@ -218,10 +220,10 @@ export default function Home() {
   return (
     <section 
       key={category} 
-      className={`pb-6 md:pb-8 px-4 sm:px-6 md:px-12 font-poppins ${catIdx % 2 === 0 ? 'bg-white' : 'bg-[#f4fdf8]'} ${
+      className={`w-full pb-8 md:pb-12 px-4 sm:px-6 md:px-12 font-poppins ${catIdx % 2 === 0 ? 'bg-white' : 'bg-slate-50/70'} ${
         catIdx === 0 
           ? 'pt-2 md:pt-3 border-t-0' 
-          : 'pt-4 md:pt-6 border-t border-emerald-900/5'
+          : 'pt-6 md:pt-8 border-t border-slate-100'
       }`} 
       id={sectionId}
     >
@@ -251,7 +253,7 @@ export default function Home() {
             </p>
           </div>
         </div>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3 sm:gap-5">
           {catProducts.map((product) => {
             const priceStr = `₹${product.price}/-`;
             const mrpStr = product.mrp ? `₹${product.mrp}/-` : undefined;
@@ -298,7 +300,7 @@ export default function Home() {
 
 
 
-        <section id="ritual-section" className="py-6 md:py-10 px-4 sm:px-6 md:px-12 bg-white relative overflow-hidden font-poppins">
+        <section id="ritual-section" className="w-full py-8 md:py-14 px-4 sm:px-6 md:px-12 bg-white relative overflow-hidden font-poppins">
   {/* Header */}
   <header className="max-w-3xl mx-auto text-center mb-6 md:mb-10 relative">
     <div className="absolute inset-0 bg-emerald-50/80 backdrop-blur-3xl rounded-3xl -z-10 transform -rotate-2 scale-105"></div>
