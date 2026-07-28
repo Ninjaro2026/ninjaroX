@@ -21,6 +21,9 @@ export interface ProductCardProps {
   stock: number;
   mrp?: string;
   isBestSeller?: boolean;
+  customTag?: string;
+  tagPosition?: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
+  tagColor?: string;
   isCombo?: boolean;
   comboImages?: ComboItemInfo[];
   onAddToCart: () => void;
@@ -41,6 +44,9 @@ export function ProductCard({
   stock,
   mrp,
   isBestSeller,
+  customTag,
+  tagPosition = 'bottom-left',
+  tagColor = 'black',
   isCombo,
   comboImages,
   onAddToCart,
@@ -51,6 +57,33 @@ export function ProductCard({
   const numPrice = parseInt(price.replace(/[^\d]/g, '')) || 0;
   const numMrp = mrp ? (parseInt(mrp.replace(/[^\d]/g, '')) || 0) : 0;
   const discountPct = numMrp > numPrice ? Math.round(((numMrp - numPrice) / numMrp) * 100) : 0;
+
+  // Resolve custom tag text
+  const activeTagText = customTag ? customTag.trim() : (isBestSeller ? 'Best Seller' : null);
+
+  // Resolve tag placement class
+  const getTagPositionClass = (pos: string) => {
+    switch (pos) {
+      case 'top-left': return 'top-2.5 left-2.5 sm:top-3 sm:left-3';
+      case 'top-right': return 'top-2.5 right-2.5 sm:top-3 sm:right-3';
+      case 'bottom-right': return 'bottom-2.5 right-2.5 sm:bottom-3 sm:right-3';
+      case 'bottom-left':
+      default: return 'bottom-2.5 left-2.5 sm:bottom-3 sm:left-3';
+    }
+  };
+
+  // Resolve tag color theme class
+  const getTagColorClass = (color: string) => {
+    switch (color) {
+      case 'emerald': return 'bg-emerald-900 text-white';
+      case 'amber': return 'bg-amber-500 text-white';
+      case 'rose': return 'bg-rose-600 text-white';
+      case 'indigo': return 'bg-indigo-600 text-white';
+      case 'purple': return 'bg-purple-600 text-white';
+      case 'black':
+      default: return 'bg-black text-white';
+    }
+  };
 
   return (
     <div className="group flex flex-col rounded-2xl overflow-hidden shadow-xs border border-zinc-200/80 bg-white font-poppins relative hover:shadow-lg transition-all duration-300">
@@ -70,10 +103,10 @@ export function ProductCard({
           </span>
         )}
 
-        {/* Black Best Seller Badge */}
-        {isBestSeller && (
-          <span className="absolute bottom-2.5 left-2.5 sm:bottom-3 sm:left-3 bg-black text-white text-[7px] sm:text-[9px] font-black uppercase px-2 py-0.5 rounded-xs shadow-xs z-20 tracking-wider">
-            Best Seller
+        {/* Custom Tag Badge */}
+        {activeTagText && (
+          <span className={`absolute ${getTagPositionClass(tagPosition)} ${getTagColorClass(tagColor)} text-[7px] sm:text-[9px] font-black uppercase px-2.5 py-0.5 rounded-md shadow-xs z-20 tracking-wider`}>
+            {activeTagText}
           </span>
         )}
 
@@ -84,99 +117,12 @@ export function ProductCard({
           </span>
         )}
 
-        {/* Product Image OR Combo Multi-Image Composite Frame */}
-        {isCombo && comboImages && comboImages.length > 0 ? (
-          <div className="w-full h-full relative flex items-center justify-center p-2 z-10">
-            {comboImages.length === 1 && (
-              <div className="relative w-full h-full flex items-center justify-center">
-                <img 
-                  src={comboImages[0].src} 
-                  alt={comboImages[0].name || imageAlt}
-                  className="h-full object-contain group-hover:scale-105 transition-transform duration-300 drop-shadow-md"
-                />
-                {comboImages[0].count && comboImages[0].count > 1 && (
-                  <span className="absolute bottom-1 right-2 bg-emerald-950 text-white font-black text-[9px] px-2 py-0.5 rounded-full shadow-md z-20">
-                    {comboImages[0].count}x
-                  </span>
-                )}
-              </div>
-            )}
-
-            {comboImages.length === 2 && (
-              <div className="relative w-full h-full flex items-center justify-center">
-                <div className="relative w-1/2 h-4/5 -mr-4 transform -rotate-6 transition-transform duration-300 group-hover:-rotate-12 group-hover:scale-105 z-10 flex items-center justify-center">
-                  <img src={comboImages[0].src} alt={comboImages[0].name || ''} className="w-full h-full object-contain drop-shadow-lg" />
-                  {comboImages[0].count && comboImages[0].count > 0 && (
-                    <span className="absolute bottom-0 left-0 bg-emerald-950 text-white font-black text-[8px] px-1.5 py-0.5 rounded-md shadow-md z-20">
-                      {comboImages[0].count}x
-                    </span>
-                  )}
-                </div>
-                <div className="relative w-1/2 h-4/5 transform rotate-6 transition-transform duration-300 group-hover:rotate-12 group-hover:scale-105 z-20 flex items-center justify-center">
-                  <img src={comboImages[1].src} alt={comboImages[1].name || ''} className="w-full h-full object-contain drop-shadow-lg" />
-                  {comboImages[1].count && comboImages[1].count > 0 && (
-                    <span className="absolute bottom-0 right-0 bg-emerald-950 text-white font-black text-[8px] px-1.5 py-0.5 rounded-md shadow-md z-20">
-                      {comboImages[1].count}x
-                    </span>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {comboImages.length === 3 && (
-              <div className="relative w-full h-full flex items-center justify-center">
-                {/* Left Item */}
-                <div className="absolute left-1 w-2/5 h-3/4 transform -rotate-12 -translate-x-1 scale-95 opacity-90 transition-all duration-300 group-hover:-rotate-16 group-hover:-translate-x-2 z-10 flex items-center justify-center">
-                  <img src={comboImages[0].src} alt={comboImages[0].name || ''} className="w-full h-full object-contain drop-shadow-md" />
-                  {comboImages[0].count && comboImages[0].count > 0 && (
-                    <span className="absolute -bottom-1 left-0 bg-emerald-950 text-white font-black text-[7px] px-1.5 py-0.5 rounded-md shadow-sm">
-                      {comboImages[0].count}x
-                    </span>
-                  )}
-                </div>
-                {/* Center Item */}
-                <div className="relative w-2/5 h-full z-30 transform transition-transform duration-300 group-hover:scale-110 flex items-center justify-center">
-                  <img src={comboImages[1].src} alt={comboImages[1].name || ''} className="w-full h-full object-contain drop-shadow-xl" />
-                  {comboImages[1].count && comboImages[1].count > 0 && (
-                    <span className="absolute bottom-0 right-0 bg-emerald-950 text-white font-black text-[8px] px-1.5 py-0.5 rounded-md shadow-md z-40">
-                      {comboImages[1].count}x
-                    </span>
-                  )}
-                </div>
-                {/* Right Item */}
-                <div className="absolute right-1 w-2/5 h-3/4 transform rotate-12 translate-x-1 scale-95 opacity-90 transition-all duration-300 group-hover:rotate-16 group-hover:translate-x-2 z-20 flex items-center justify-center">
-                  <img src={comboImages[2].src} alt={comboImages[2].name || ''} className="w-full h-full object-contain drop-shadow-md" />
-                  {comboImages[2].count && comboImages[2].count > 0 && (
-                    <span className="absolute -bottom-1 right-0 bg-emerald-950 text-white font-black text-[7px] px-1.5 py-0.5 rounded-md shadow-sm">
-                      {comboImages[2].count}x
-                    </span>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {comboImages.length >= 4 && (
-              <div className="w-full h-full grid grid-cols-2 gap-1 p-1">
-                {comboImages.slice(0, 4).map((item, idx) => (
-                  <div key={idx} className="relative w-full h-full flex items-center justify-center p-0.5 bg-white/40 rounded-lg border border-zinc-200/50">
-                    <img src={item.src} alt={item.name || ''} className="h-full max-h-20 object-contain drop-shadow-xs group-hover:scale-105 transition-transform duration-300" />
-                    {item.count && item.count > 0 && (
-                      <span className="absolute bottom-0.5 right-0.5 bg-emerald-950 text-white font-black text-[7px] px-1 py-0.2 rounded-xs shadow-xs">
-                        {item.count}x
-                      </span>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        ) : (
-          <img 
-            className="w-full h-full object-contain relative z-10 group-hover:scale-105 transition-transform duration-300" 
-            src={imageSrc}
-            alt={imageAlt}
-          />
-        )}
+        {/* Product Image */}
+        <img 
+          className="w-full h-full object-contain relative z-10 group-hover:scale-105 transition-transform duration-300" 
+          src={imageSrc}
+          alt={imageAlt}
+        />
       </Link>
 
       {/* Info card text and buttons */}

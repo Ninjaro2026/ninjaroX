@@ -1,15 +1,23 @@
 "use client";
 import React, { useState, useEffect } from 'react';
 import { getStoredProducts, saveStoredProducts, getStoredOrders, Product, Order, getProductStock } from '../../../lib/store';
-import { fetchProducts, createProduct, updateProduct, deleteProduct, fetchOrders, uploadImagesToDrive } from '../../../lib/api';
+import { fetchProducts, createProduct, updateProduct, deleteProduct, fetchOrders, uploadImagesToDrive, deleteImagesFromDrive } from '../../../lib/api';
 import { ProductCardSkeleton } from '../../../components/Skeleton';
 import { ProductCard } from '../../../components/ProductCard';
 
 const STOREFRONT_CATEGORIES = [
   'Jar 500gm',
   '20gm Pouch (5pc)',
-  'Signature Combos',
   'Combos'
+];
+
+const TAG_PRESETS = [
+  'Best Seller',
+  'New Launch',
+  'Must Try',
+  'Sugar Free',
+  'Trending',
+  'Limited Edition'
 ];
 
 export default function CatalogPage() {
@@ -18,9 +26,9 @@ export default function CatalogPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Modal & Step Wizard states
+  // Modal & Stepper navigation states
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
-  const [modalStep, setModalStep] = useState<1 | 2 | 3>(1);
+  const [stepperStep, setStepperStep] = useState<1 | 2 | 3 | 4>(1);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
 
   // Form states for product/combo
@@ -36,6 +44,14 @@ export default function CatalogPage() {
   const [prodShowInStorefront, setProdShowInStorefront] = useState(true);
   const [prodPriority, setProdPriority] = useState(0);
   const [prodIsBestSeller, setProdIsBestSeller] = useState(false);
+
+  // Flexible Custom Tag Builder states
+  const [prodCustomTag, setProdCustomTag] = useState('');
+  const [prodTagPosition, setProdTagPosition] = useState<'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'>('bottom-left');
+  const [prodTagColor, setProdTagColor] = useState<string>('black');
+
+  // Form Validation State
+  const isFormValid = prodName.trim().length > 0 && prodDesc.trim().length > 0 && Number(prodPrice) > 0;
 
   // Sequential Google Drive Photo Upload states
   const [uploadedPhotos, setUploadedPhotos] = useState<string[]>([]);
@@ -82,10 +98,10 @@ export default function CatalogPage() {
     return { unitsSold, revenue };
   };
 
-  // Step-by-Step Wizard Openers
+  // Product Modal Openers
   const handleOpenAddProduct = () => {
     setEditingProduct(null);
-    setModalStep(1);
+    setStepperStep(1);
     setProdCategory('Jar 500gm');
     setIsCombo(false);
     setProdName('');
@@ -96,6 +112,9 @@ export default function CatalogPage() {
     setProdShowInStorefront(true);
     setProdPriority(0);
     setProdIsBestSeller(false);
+    setProdCustomTag('');
+    setProdTagPosition('bottom-left');
+    setProdTagColor('black');
     setUploadedPhotos([]);
     setCustomPhotoInput('');
     
@@ -110,7 +129,7 @@ export default function CatalogPage() {
 
   const handleOpenEditProduct = (product: Product) => {
     setEditingProduct(product);
-    setModalStep(1);
+    setStepperStep(1);
     setProdCategory(product.category || 'Jar 500gm');
     setIsCombo(!!product.isCombo);
     setProdName(product.name);
@@ -121,6 +140,9 @@ export default function CatalogPage() {
     setProdShowInStorefront(product.showInStorefront !== false);
     setProdPriority(product.priority || 0);
     setProdIsBestSeller(!!product.isBestSeller);
+    setProdCustomTag(product.customTag || (product.isBestSeller ? 'Best Seller' : ''));
+    setProdTagPosition(product.tagPosition || 'bottom-left');
+    setProdTagColor(product.tagColor || 'black');
 
     // Load existing photos
     const existingPhotos: string[] = [];
@@ -143,7 +165,7 @@ export default function CatalogPage() {
     setIsProductModalOpen(true);
   };
 
-  // Handle Sequential Photo Upload to Google Drive
+  // Handle Sequential Photo Upload to Google Drive with 2MB Limit & Sanitized Renaming
   const handleSequentialPhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
@@ -154,7 +176,19 @@ export default function CatalogPage() {
     try {
       for (let i = 0; i < fileList.length; i++) {
         const file = fileList[i];
+
+        // 1. Enforce 2MB Maximum File Size Limit
+        if (file.size > 2 * 1024 * 1024) {
+          alert(`File "${file.name}" exceeds the 2MB size limit (${(file.size / (1024 * 1024)).toFixed(2)} MB). Please select an image under 2MB.`);
+          continue;
+        }
+
         setUploadStatusText(`Uploading photo ${i + 1} of ${fileList.length} to Google Drive...`);
+
+        // 2. Generate Sanitized Unique Filename for Structured Storage
+        const fileExt = file.name.split('.').pop()?.toLowerCase() || 'jpg';
+        const sanitizedSlug = prodName ? prodName.trim().toLowerCase().replace(/[^a-z0-9]/g, '_') : 'catalog_asset';
+        const sanitizedFileName = `ninjiro_${sanitizedSlug}_${Date.now()}_${i + 1}.${fileExt}`;
 
         const base64 = await new Promise<string>((resolve, reject) => {
           const reader = new FileReader();
@@ -163,8 +197,8 @@ export default function CatalogPage() {
           reader.readAsDataURL(file);
         });
 
-        // Call Google Drive backend upload API
-        const res = await uploadImagesToDrive([{ base64, fileName: file.name }]);
+        // Call Google Drive backend upload API with sanitized file name
+        const res = await uploadImagesToDrive([{ base64, fileName: sanitizedFileName }]);
         if (res && res.urls && res.urls.length > 0) {
           setUploadedPhotos(prev => [...prev, res.urls[0]]);
         } else if (res && res.url) {
@@ -187,7 +221,15 @@ export default function CatalogPage() {
     }
   };
 
-  const handleRemovePhoto = (index: number) => {
+  const handleRemovePhoto = async (index: number) => {
+    const photoToRemove = uploadedPhotos[index];
+    if (photoToRemove) {
+      try {
+        await deleteImagesFromDrive([photoToRemove]);
+      } catch (err: any) {
+        alert('⚠️ Failed to delete photo from Google Drive: ' + (err.message || err));
+      }
+    }
     setUploadedPhotos(prev => prev.filter((_, i) => i !== index));
   };
 
@@ -210,14 +252,21 @@ export default function CatalogPage() {
     });
   };
 
-  const handleClearAllPhotos = () => {
+  const handleClearAllPhotos = async () => {
     if (confirm('Are you sure you want to remove all photos from this product?')) {
+      if (uploadedPhotos.length > 0) {
+        try {
+          await deleteImagesFromDrive(uploadedPhotos);
+        } catch (err: any) {
+          alert('⚠️ Failed to delete photos from Google Drive: ' + (err.message || err));
+        }
+      }
       setUploadedPhotos([]);
     }
   };
 
-  const handleSaveProduct = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSaveProduct = async () => {
+
     if (!prodName.trim() || !prodDesc.trim()) {
       alert('Please fill out all required fields (Name and Description).');
       return;
@@ -255,7 +304,10 @@ export default function CatalogPage() {
       category: prodCategory,
       showInStorefront: prodShowInStorefront,
       priority: Number(prodPriority),
-      isBestSeller: prodIsBestSeller
+      isBestSeller: prodCustomTag.trim().toLowerCase() === 'best seller',
+      customTag: prodCustomTag.trim(),
+      tagPosition: prodTagPosition,
+      tagColor: prodTagColor
     };
 
     try {
@@ -275,7 +327,10 @@ export default function CatalogPage() {
   const handleDeleteProduct = async (id: string) => {
     if (confirm('Are you sure you want to delete this product?')) {
       try {
-        await deleteProduct(id);
+        const res = await deleteProduct(id);
+        if (res && res.warning) {
+          alert('⚠️ Notice: ' + res.warning);
+        }
         setProducts(prev => prev.filter(p => p.id !== id));
         setSelectedProductIds(prev => prev.filter(item => item !== id));
       } catch (err: any) {
@@ -333,7 +388,11 @@ export default function CatalogPage() {
     if (selectedProductIds.length === 0) return;
     if (confirm(`Are you sure you want to delete the ${selectedProductIds.length} selected products?`)) {
       try {
-        await Promise.all(selectedProductIds.map(id => deleteProduct(id)));
+        const results = await Promise.all(selectedProductIds.map(id => deleteProduct(id)));
+        const warnings = results.map((r: any) => r?.warning).filter(Boolean);
+        if (warnings.length > 0) {
+          alert('⚠️ Google Drive Image Deletion Warning:\n' + warnings.join('\n'));
+        }
         setProducts(prev => prev.filter(p => !selectedProductIds.includes(p.id)));
         setSelectedProductIds([]);
       } catch (err: any) {
@@ -404,111 +463,178 @@ export default function CatalogPage() {
         })
     : undefined;
 
+  // Compute metric stats for overview cards
+  const totalAssetsCount = products.length;
+  const liveStorefrontCount = products.filter(p => p.showInStorefront !== false).length;
+  const lowStockCount = products.filter(p => {
+    const s = getProductStock(p, products);
+    return s > 0 && s < 10;
+  }).length;
+  const outOfStockCount = products.filter(p => getProductStock(p, products) === 0).length;
+
   return (
-    <div className="space-y-8 animate-in fade-in duration-300 font-poppins">
-      {/* Catalog Control Header */}
-      <div className="bg-white p-6 border-2 border-emerald-900/10 rounded-3xl shadow-xl flex flex-col gap-5">
+    <div className="space-y-6 animate-in fade-in duration-300 font-poppins pb-12">
+      
+      {/* 1. TOP CONTROL BAR */}
+      <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col gap-4">
         <div className="flex flex-col lg:flex-row justify-between items-center gap-4">
-          {/* Search */}
-          <div className="relative w-full lg:w-96 shrink-0">
-            <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-emerald-900/50 text-lg">search</span>
+          
+          {/* Search Field */}
+          <div className="relative w-full lg:w-80 shrink-0">
+            <span className="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-base">search</span>
             <input 
               type="text" 
               value={catalogSearch}
               onChange={(e) => setCatalogSearch(e.target.value)}
-              placeholder="Search flavors, jars, pouches & combos..." 
-              className="w-full bg-slate-50 border-2 border-emerald-900/15 rounded-2xl pl-12 pr-6 py-3.5 text-xs font-black outline-none focus:border-emerald-700 focus:bg-white transition-all text-emerald-900 placeholder-emerald-900/40"
+              placeholder="Search assets by title or description..." 
+              className="w-full bg-slate-50/60 border border-slate-200 rounded-xl pl-10 pr-8 py-2.5 text-xs font-semibold outline-none focus:border-emerald-600 focus:bg-white transition-all text-slate-800 placeholder-slate-400"
             />
+            {catalogSearch && (
+              <button 
+                onClick={() => setCatalogSearch('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+              >
+                <span className="material-symbols-outlined text-sm">cancel</span>
+              </button>
+            )}
           </div>
 
-          {/* Filters */}
-          <div className="flex flex-wrap items-center justify-center gap-3 w-full lg:w-auto">
-            {/* Category Filter */}
-            <div className="flex items-center gap-1 bg-slate-100 border border-emerald-900/15 rounded-xl px-3">
-              <span className="material-symbols-outlined text-sm text-emerald-900/60">category</span>
-              <select 
-                value={catalogCategoryFilter}
-                onChange={(e) => setCatalogCategoryFilter(e.target.value)}
-                className="bg-transparent text-[11px] font-black uppercase text-emerald-900 py-3.5 outline-none border-none cursor-pointer tracking-wider"
+          {/* Quick Filters & Actions */}
+          <div className="flex flex-wrap items-center justify-between lg:justify-end gap-2.5 w-full lg:w-auto">
+            {/* Category Quick Pills */}
+            <div className="flex items-center gap-1 bg-slate-50/80 p-1 rounded-xl border border-slate-200/80 overflow-x-auto custom-scrollbar">
+              <button
+                type="button"
+                onClick={() => setCatalogCategoryFilter('all')}
+                className={`px-3 py-1.5 rounded-lg text-[10px] font-semibold uppercase tracking-wider transition-all cursor-pointer ${catalogCategoryFilter === 'all' ? 'bg-emerald-800 text-white shadow-2xs' : 'text-slate-600 hover:bg-slate-100'}`}
               >
-                <option value="all">All Categories</option>
-                {STOREFRONT_CATEGORIES.map(cat => (
-                  <option key={cat} value={cat}>{cat}</option>
-                ))}
-                {activeCategories.filter(c => !STOREFRONT_CATEGORIES.includes(c)).map(cat => (
-                  <option key={cat} value={cat}>{cat}</option>
-                ))}
-              </select>
+                All
+              </button>
+              {STOREFRONT_CATEGORIES.map(cat => (
+                <button
+                  key={cat}
+                  type="button"
+                  onClick={() => setCatalogCategoryFilter(cat)}
+                  className={`px-3 py-1.5 rounded-lg text-[10px] font-semibold uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap ${catalogCategoryFilter === cat ? 'bg-emerald-800 text-white shadow-2xs' : 'text-slate-600 hover:bg-slate-100'}`}
+                >
+                  {cat}
+                </button>
+              ))}
             </div>
 
-            {/* Stock Filter */}
-            <div className="flex items-center gap-1 bg-slate-100 border border-emerald-900/15 rounded-xl px-3">
-              <span className="material-symbols-outlined text-sm text-emerald-900/60">filter_list</span>
-              <select 
-                value={catalogStockFilter}
-                onChange={(e) => setCatalogStockFilter(e.target.value as any)}
-                className="bg-transparent text-[11px] font-black uppercase text-emerald-900 py-3.5 outline-none border-none cursor-pointer tracking-wider"
-              >
-                <option value="all">All stock status</option>
-                <option value="low">Low Stock (&lt; 10)</option>
-                <option value="out">Out of Stock (0)</option>
-              </select>
-            </div>
+            {/* Stock Filter Menu */}
+            <select 
+              value={catalogStockFilter}
+              onChange={(e) => setCatalogStockFilter(e.target.value as any)}
+              className="bg-slate-50/80 border border-slate-200 rounded-xl px-3 py-2 text-[11px] font-semibold text-slate-700 outline-none cursor-pointer"
+            >
+              <option value="all">All Stock Status</option>
+              <option value="low">Low Stock (&lt; 10)</option>
+              <option value="out">Out of Stock (0)</option>
+            </select>
 
-            {/* Sort Filter */}
-            <div className="flex items-center gap-1 bg-slate-100 border border-emerald-900/15 rounded-xl px-3">
-              <span className="material-symbols-outlined text-sm text-emerald-900/60">sort</span>
-              <select 
-                value={catalogSort}
-                onChange={(e) => setCatalogSort(e.target.value as any)}
-                className="bg-transparent text-[11px] font-black uppercase text-emerald-900 py-3.5 outline-none border-none cursor-pointer tracking-wider"
-              >
-                <option value="priority">Sort by Priority (Display Order)</option>
-                <option value="name">Sort by Name</option>
-                <option value="price-asc">Price: Low to High</option>
-                <option value="price-desc">Price: High to Low</option>
-                <option value="stock-asc">Stock: Low to High</option>
-                <option value="stock-desc">Stock: High to Low</option>
-              </select>
-            </div>
+            {/* Sort Menu */}
+            <select 
+              value={catalogSort}
+              onChange={(e) => setCatalogSort(e.target.value as any)}
+              className="bg-slate-50/80 border border-slate-200 rounded-xl px-3 py-2 text-[11px] font-semibold text-slate-700 outline-none cursor-pointer"
+            >
+              <option value="priority">Priority Order</option>
+              <option value="name">Name A-Z</option>
+              <option value="price-asc">Price: Low to High</option>
+              <option value="price-desc">Price: High to Low</option>
+              <option value="stock-asc">Stock: Low to High</option>
+              <option value="stock-desc">Stock: High to Low</option>
+            </select>
 
+            {/* Add Asset Button */}
             <button 
               onClick={handleOpenAddProduct}
-              className="flex items-center justify-center gap-2 bg-emerald-900 text-white px-6 py-3.5 rounded-xl font-black uppercase tracking-widest hover:bg-emerald-800 transition-all shadow-lg text-xs cursor-pointer"
+              className="flex items-center gap-1.5 bg-emerald-800 text-white px-4 py-2.5 rounded-xl font-semibold text-xs uppercase tracking-wider hover:bg-emerald-700 transition-all shadow-xs cursor-pointer shrink-0"
             >
-              <span className="material-symbols-outlined text-lg">add_circle</span> Add Product / Combo
+              <span className="material-symbols-outlined text-base">add</span>
+              <span>New Asset</span>
             </button>
           </div>
         </div>
 
-        {/* Bulk actions */}
+        {/* Floating Bulk Action Bar */}
         {selectedProductIds.length > 0 && (
-          <div className="flex items-center justify-between p-3.5 bg-emerald-950/5 rounded-2xl border border-emerald-900/15 animate-in slide-in-from-top-2 duration-300">
-            <div className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-emerald-900">
-              <span className="material-symbols-outlined text-base text-emerald-900">checklist</span>
-              <span>{selectedProductIds.length} Items Selected</span>
+          <div className="flex items-center justify-between p-3 bg-emerald-50/80 rounded-xl border border-emerald-200 animate-in fade-in duration-200">
+            <div className="flex items-center gap-2 text-xs font-semibold text-emerald-950">
+              <span className="material-symbols-outlined text-base text-emerald-800">checklist</span>
+              <span>{selectedProductIds.length} Assets Selected</span>
             </div>
 
             <div className="flex items-center gap-2">
               <button 
-                onClick={() => handleBulkRestock(50)} 
-                className="bg-white hover:bg-emerald-50 border-2 border-emerald-900/20 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider text-emerald-900 shadow-sm transition-all cursor-pointer"
+                onClick={() => handleBulkRestock(10)} 
+                className="bg-white hover:bg-slate-100 border border-emerald-200 px-3 py-1.5 rounded-lg text-[10px] font-semibold uppercase tracking-wider text-emerald-900 shadow-2xs transition-all cursor-pointer"
               >
-                Bulk Restock (+50 Units)
+                +10 Stock
+              </button>
+              <button 
+                onClick={() => handleBulkRestock(50)} 
+                className="bg-white hover:bg-slate-100 border border-emerald-200 px-3 py-1.5 rounded-lg text-[10px] font-semibold uppercase tracking-wider text-emerald-900 shadow-2xs transition-all cursor-pointer"
+              >
+                +50 Stock
               </button>
               <button 
                 onClick={handleBulkDelete} 
-                className="bg-rose-50 hover:bg-rose-100 border border-rose-300 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider text-rose-700 shadow-sm transition-all cursor-pointer"
+                className="bg-rose-600 hover:bg-rose-700 text-white px-3.5 py-1.5 rounded-lg text-[10px] font-semibold uppercase tracking-wider shadow-2xs transition-all cursor-pointer"
               >
-                Bulk Delete
+                Delete Selected
               </button>
             </div>
           </div>
         )}
       </div>
 
-      {/* Catalog Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {/* 2. INVENTORY METRICS OVERVIEW */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-2xs flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-slate-100 text-slate-700 flex items-center justify-center shrink-0">
+            <span className="material-symbols-outlined text-xl">inventory_2</span>
+          </div>
+          <div>
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 block">Total Assets</span>
+            <p className="text-base font-bold text-slate-800">{totalAssetsCount} Items</p>
+          </div>
+        </div>
+
+        <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-2xs flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-800 flex items-center justify-center shrink-0">
+            <span className="material-symbols-outlined text-xl">storefront</span>
+          </div>
+          <div>
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 block">Storefront Live</span>
+            <p className="text-base font-bold text-slate-800">{liveStorefrontCount} Active</p>
+          </div>
+        </div>
+
+        <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-2xs flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-800 flex items-center justify-center shrink-0">
+            <span className="material-symbols-outlined text-xl">warning</span>
+          </div>
+          <div>
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 block">Low Stock Alert</span>
+            <p className="text-base font-bold text-slate-800">{lowStockCount} Items</p>
+          </div>
+        </div>
+
+        <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-2xs flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-rose-50 text-rose-700 flex items-center justify-center shrink-0">
+            <span className="material-symbols-outlined text-xl">report</span>
+          </div>
+          <div>
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 block">Out of Stock</span>
+            <p className="text-base font-bold text-slate-800">{outOfStockCount} Items</p>
+          </div>
+        </div>
+      </div>
+
+      {/* 3. CATALOG ASSETS GRID */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
         {loading ? (
           <>
             <ProductCardSkeleton />
@@ -517,597 +643,499 @@ export default function CatalogPage() {
           </>
         ) : (
           filteredAndSortedProducts.map((product) => {
-          const analytics = getProductAnalytics(product.name);
-          const isSelected = selectedProductIds.includes(product.id);
-          const computedStock = getProductStock(product, products);
-          const isHidden = product.showInStorefront === false;
-          const cardDiscountPct = (product.mrp && product.mrp > product.price) 
-            ? Math.round(((product.mrp - product.price) / product.mrp) * 100) 
-            : 0;
+            const analytics = getProductAnalytics(product.name);
+            const isSelected = selectedProductIds.includes(product.id);
+            const computedStock = getProductStock(product, products);
+            const isHidden = product.showInStorefront === false;
+            const cardDiscountPct = (product.mrp && product.mrp > product.price) 
+              ? Math.round(((product.mrp - product.price) / product.mrp) * 100) 
+              : 0;
 
-          const productComboImages = product.isCombo && product.comboItems && product.comboItems.length > 0
-            ? product.comboItems.map(item => {
-                const comp = products.find(p => p.id === item.productId);
-                return {
-                  src: comp?.imageSrc || '/bluelagoonjar.jpeg',
-                  count: item.quantity,
-                  name: comp?.name || ''
-                };
-              })
-            : undefined;
-          
-          return (
-            <div key={product.id} className={`bg-white border-2 rounded-3xl overflow-hidden shadow-lg flex flex-col justify-between group relative transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl ${isSelected ? 'ring-4 ring-emerald-600 border-emerald-700' : isHidden ? 'opacity-75 border-zinc-200 bg-zinc-50' : 'border-emerald-900/10'}`}>
-              
-              {/* Selection checkbox */}
-              <button 
-                type="button"
-                onClick={() => toggleSelectProduct(product.id)}
-                className={`absolute top-4 right-4 w-7 h-7 rounded-full border-2 flex items-center justify-center z-20 transition-all cursor-pointer ${isSelected ? 'bg-emerald-900 text-white border-emerald-900 shadow-md' : 'bg-white/80 backdrop-blur border-emerald-900/30 text-transparent hover:border-emerald-900'}`}
+            const activeTagText = product.customTag ? product.customTag.trim() : (product.isBestSeller ? 'Best Seller' : null);
+
+            return (
+              <div 
+                key={product.id} 
+                className={`bg-white border rounded-2xl overflow-hidden shadow-xs flex flex-col justify-between group relative transition-all duration-300 hover:shadow-md ${isSelected ? 'ring-2 ring-emerald-600 border-emerald-600' : isHidden ? 'opacity-75 border-slate-200 bg-slate-50/50' : 'border-slate-200/80'}`}
               >
-                <span className="material-symbols-outlined text-[16px]">check</span>
-              </button>
+                {/* Checkbox selector */}
+                <button 
+                  type="button"
+                  onClick={() => toggleSelectProduct(product.id)}
+                  className={`absolute top-3 right-3 w-6 h-6 rounded-full border flex items-center justify-center z-20 transition-all cursor-pointer ${isSelected ? 'bg-emerald-800 text-white border-emerald-800 shadow-2xs' : 'bg-white/80 backdrop-blur border-slate-300 text-transparent hover:border-slate-500'}`}
+                >
+                  <span className="material-symbols-outlined text-xs">check</span>
+                </button>
 
-              {/* Card visual header */}
-              <div className="bg-slate-50/80 h-48 relative flex items-center justify-center p-4 border-b border-emerald-900/10 overflow-hidden">
-                
-                {/* Badges Container */}
-                <div className="absolute top-4 left-4 flex flex-col gap-1.5 z-20 items-start">
-                  {product.isBestSeller && (
-                    <span className="bg-black text-white font-black tracking-wider text-[8px] uppercase px-2.5 py-0.5 rounded-xs shadow-md">
-                      ★ Best Seller
+                {/* Card Top Visual Preview */}
+                <div className="bg-slate-50/60 h-48 relative flex items-center justify-center p-3 border-b border-slate-100 overflow-hidden">
+                  
+                  {/* Badges Container */}
+                  <div className="absolute top-3 left-3 flex flex-col gap-1 z-20 items-start">
+                    {activeTagText && (
+                      <span className="bg-slate-800 text-white font-semibold tracking-wider text-[8px] uppercase px-2 py-0.5 rounded-md shadow-2xs">
+                        {activeTagText}
+                      </span>
+                    )}
+                    {product.isCombo && (
+                      <span className="bg-emerald-800 text-white font-semibold tracking-wider text-[8px] uppercase px-2 py-0.5 rounded-md shadow-2xs">
+                        Combo Pack
+                      </span>
+                    )}
+                    {cardDiscountPct > 0 && (
+                      <span className="bg-rose-600 text-white text-[8px] font-bold uppercase px-2 py-0.5 rounded-md shadow-2xs">
+                        {cardDiscountPct}% OFF
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Hidden Overlay Tag */}
+                  {isHidden && (
+                    <span className="absolute bottom-2.5 right-2.5 bg-slate-800/80 backdrop-blur text-white text-[8px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-md z-20">
+                      Hidden
                     </span>
                   )}
-                  {product.isCombo && (
-                    <span className="bg-emerald-950 text-white font-black tracking-wider text-[8px] uppercase px-2.5 py-0.5 rounded-full shadow-md">
-                      Combo Pack
-                    </span>
-                  )}
-                  {cardDiscountPct > 0 && (
-                    <span className="bg-[#f43f5e] text-white text-[8px] font-black uppercase px-2 py-0.5 rounded-md shadow-xs">
-                      {cardDiscountPct}% OFF
-                    </span>
-                  )}
-                  {!product.isCombo && computedStock < 10 && (
-                    <span className="bg-rose-600 text-white font-black tracking-wider text-[8px] uppercase px-2.5 py-0.5 rounded-full shadow-md animate-pulse">
-                      {computedStock === 0 ? 'Out of Stock' : `Only ${computedStock} Left!`}
-                    </span>
-                  )}
+
+                  {/* Clean Cover Image */}
+                  <img 
+                    src={product.imageSrc} 
+                    alt={product.name} 
+                    className="h-full object-contain group-hover:scale-105 transition-transform duration-300 drop-shadow-md z-10" 
+                  />
                 </div>
 
-                {/* Hidden Overlay Tag */}
-                {isHidden && (
-                  <span className="absolute bottom-3 right-3 bg-zinc-900/80 backdrop-blur text-white text-[8px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg z-20">
-                    Hidden from Storefront
-                  </span>
-                )}
-
-                {/* Multi-Image Composite Frame for Combos OR Single Product Image */}
-                {product.isCombo && productComboImages && productComboImages.length > 0 ? (
-                  <div className="w-full h-full relative flex items-center justify-center p-2 z-10">
-                    {productComboImages.length === 1 && (
-                      <div className="relative w-full h-full flex items-center justify-center">
-                        <img src={productComboImages[0].src} alt={product.name} className="h-full object-contain drop-shadow-md" />
-                        {productComboImages[0].count && productComboImages[0].count > 1 && (
-                          <span className="absolute bottom-1 right-2 bg-emerald-950 text-white font-black text-[9px] px-2 py-0.5 rounded-full shadow-md z-20">
-                            {productComboImages[0].count}x
+                {/* Card Info Body */}
+                <div className="p-4 space-y-3.5 grow flex flex-col justify-between">
+                  <div className="space-y-1.5">
+                    <div className="flex justify-between items-start gap-2">
+                      <div>
+                        <span className="text-[9px] font-semibold uppercase tracking-wider text-slate-400 block">
+                          {product.category || 'Uncategorized'}
+                        </span>
+                        <h4 className="text-sm font-bold text-slate-800 leading-snug mt-0.5">{product.name}</h4>
+                      </div>
+                      
+                      <div className="flex flex-col items-end shrink-0">
+                        {product.mrp && product.mrp > product.price && (
+                          <span className="text-[9px] line-through text-slate-400 font-medium">
+                            ₹{product.mrp}
                           </span>
                         )}
-                      </div>
-                    )}
-                    {productComboImages.length === 2 && (
-                      <div className="relative w-full h-full flex items-center justify-center">
-                        <div className="relative w-1/2 h-4/5 -mr-4 transform -rotate-6 z-10 flex items-center justify-center">
-                          <img src={productComboImages[0].src} alt="" className="w-full h-full object-contain drop-shadow-lg" />
-                          {productComboImages[0].count && productComboImages[0].count > 0 && (
-                            <span className="absolute bottom-0 left-0 bg-emerald-950 text-white font-black text-[8px] px-1.5 py-0.5 rounded-md shadow-md z-20">
-                              {productComboImages[0].count}x
-                            </span>
-                          )}
-                        </div>
-                        <div className="relative w-1/2 h-4/5 transform rotate-6 z-20 flex items-center justify-center">
-                          <img src={productComboImages[1].src} alt="" className="w-full h-full object-contain drop-shadow-lg" />
-                          {productComboImages[1].count && productComboImages[1].count > 0 && (
-                            <span className="absolute bottom-0 right-0 bg-emerald-950 text-white font-black text-[8px] px-1.5 py-0.5 rounded-md shadow-md z-20">
-                              {productComboImages[1].count}x
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                    {productComboImages.length === 3 && (
-                      <div className="relative w-full h-full flex items-center justify-center">
-                        <div className="absolute left-1 w-2/5 h-3/4 transform -rotate-12 -translate-x-1 scale-95 opacity-90 z-10 flex items-center justify-center">
-                          <img src={productComboImages[0].src} alt="" className="w-full h-full object-contain drop-shadow-md" />
-                          {productComboImages[0].count && productComboImages[0].count > 0 && (
-                            <span className="absolute -bottom-1 left-0 bg-emerald-950 text-white font-black text-[7px] px-1.5 py-0.5 rounded-md shadow-sm">
-                              {productComboImages[0].count}x
-                            </span>
-                          )}
-                        </div>
-                        <div className="relative w-2/5 h-full z-30 flex items-center justify-center">
-                          <img src={productComboImages[1].src} alt="" className="w-full h-full object-contain drop-shadow-xl" />
-                          {productComboImages[1].count && productComboImages[1].count > 0 && (
-                            <span className="absolute bottom-0 right-0 bg-emerald-950 text-white font-black text-[8px] px-1.5 py-0.5 rounded-md shadow-md z-40">
-                              {productComboImages[1].count}x
-                            </span>
-                          )}
-                        </div>
-                        <div className="absolute right-1 w-2/5 h-3/4 transform rotate-12 translate-x-1 scale-95 opacity-90 z-20 flex items-center justify-center">
-                          <img src={productComboImages[2].src} alt="" className="w-full h-full object-contain drop-shadow-md" />
-                          {productComboImages[2].count && productComboImages[2].count > 0 && (
-                            <span className="absolute -bottom-1 right-0 bg-emerald-950 text-white font-black text-[7px] px-1.5 py-0.5 rounded-md shadow-sm">
-                              {productComboImages[2].count}x
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                    {productComboImages.length >= 4 && (
-                      <div className="w-full h-full grid grid-cols-2 gap-1 p-1">
-                        {productComboImages.slice(0, 4).map((item, idx) => (
-                          <div key={idx} className="relative w-full h-full flex items-center justify-center p-0.5 bg-white/40 rounded-lg border border-zinc-200/50">
-                            <img src={item.src} alt="" className="h-full max-h-20 object-contain drop-shadow-xs" />
-                            {item.count && item.count > 0 && (
-                              <span className="absolute bottom-0.5 right-0.5 bg-emerald-950 text-white font-black text-[7px] px-1 py-0.2 rounded-xs shadow-xs">
-                                {item.count}x
-                              </span>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <img src={product.imageSrc} alt={product.name} className="h-full object-contain group-hover:scale-105 transition-transform duration-500 drop-shadow-xl z-10" />
-                )}
-              </div>
-
-              {/* Card Info details */}
-              <div className="p-6 space-y-4 grow flex flex-col justify-between">
-                <div className="space-y-2">
-                  <div className="flex justify-between items-start gap-3">
-                    <div>
-                      <span className="text-[9px] font-black uppercase tracking-widest text-emerald-900/50 block">
-                        {product.category || 'Uncategorized'}
-                      </span>
-                      <h4 className="text-base font-black italic uppercase tracking-wider text-emerald-900 leading-tight mt-0.5">{product.name}</h4>
-                    </div>
-                    
-                    <div className="flex flex-col items-end shrink-0">
-                      {product.mrp && product.mrp > product.price && (
-                        <span className="text-[9px] line-through text-zinc-400 font-bold">
-                          ₹{product.mrp}
+                        <span className="text-xs font-bold text-slate-800 bg-slate-100 px-2 py-0.5 rounded-lg border border-slate-200">
+                          ₹{product.price}/-
                         </span>
-                      )}
-                      <span className="text-sm font-black text-emerald-900 bg-emerald-50 px-2.5 py-1 rounded-xl border border-emerald-900/10">₹{product.price}/-</span>
+                      </div>
+                    </div>
+
+                    <p className="text-slate-500 text-xs leading-relaxed line-clamp-2 font-medium">{product.description}</p>
+                    
+                    {/* Combo constituent items summary */}
+                    {product.isCombo && product.comboItems && (
+                      <div className="pt-1">
+                        <span className="text-[9px] font-semibold text-slate-400 uppercase tracking-wider block">Bundle Ingredients</span>
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {product.comboItems.map((item, idx) => {
+                            const matchedComp = products.find(p => p.id === item.productId);
+                            return (
+                              <span key={idx} className="bg-slate-100 text-slate-700 text-[9px] font-semibold px-2 py-0.5 rounded-md border border-slate-200">
+                                {item.quantity}x {matchedComp ? matchedComp.name : 'Flavor'}
+                              </span>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Storefront Visibility & Priority Quick Row */}
+                  <div className="flex items-center justify-between gap-2 p-2 bg-slate-50/80 rounded-xl border border-slate-200/80 text-[10px] font-semibold">
+                    <button 
+                      type="button"
+                      onClick={() => handleToggleQuickVisibility(product)}
+                      className={`flex items-center gap-1 px-2.5 py-1 rounded-lg transition-all cursor-pointer ${!isHidden ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-slate-200 text-slate-500'}`}
+                    >
+                      <span className="material-symbols-outlined text-xs">{!isHidden ? 'visibility' : 'visibility_off'}</span>
+                      <span>{!isHidden ? 'Storefront Live' : 'Hidden'}</span>
+                    </button>
+
+                    <button 
+                      type="button"
+                      onClick={() => handleToggleQuickBestSeller(product)}
+                      className={`flex items-center gap-1 px-2 py-1 rounded-lg transition-all cursor-pointer ${product.isBestSeller ? 'bg-amber-50 text-amber-900 border border-amber-200' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}
+                    >
+                      <span className="material-symbols-outlined text-xs">star</span>
+                      <span>{product.isBestSeller ? 'Best Seller' : 'Normal'}</span>
+                    </button>
+                  </div>
+
+                  {/* Performance Analytics Pill */}
+                  <div className="bg-slate-50/60 p-2.5 rounded-xl border border-slate-200/80 grid grid-cols-2 text-center text-xs">
+                    <div className="border-r border-slate-200 pr-1">
+                      <span className="text-[8px] font-semibold text-slate-400 uppercase tracking-wider block">Units Sold</span>
+                      <span className="font-bold text-slate-800">{analytics.unitsSold} units</span>
+                    </div>
+                    <div className="pl-1">
+                      <span className="text-[8px] font-semibold text-slate-400 uppercase tracking-wider block">Revenue</span>
+                      <span className="font-bold text-slate-800">₹{analytics.revenue}</span>
                     </div>
                   </div>
 
-                  <p className="text-emerald-900/80 text-xs leading-relaxed line-clamp-2 font-semibold">{product.description}</p>
-                  
-                  {/* List components for Combo */}
-                  {product.isCombo && product.comboItems && (
-                    <div className="pt-1">
-                      <span className="text-[9px] font-black text-emerald-900 uppercase tracking-widest block">Constituent items</span>
-                      <div className="flex flex-wrap gap-1 mt-1">
-                        {product.comboItems.map((item, idx) => {
-                          const matchedComp = products.find(p => p.id === item.productId);
-                          return (
-                            <span key={idx} className="bg-slate-100 text-emerald-900 text-[9px] font-black px-2 py-0.5 rounded-md border border-emerald-900/10">
-                              {item.quantity}x {matchedComp ? matchedComp.name : 'Unknown'}
-                            </span>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Quick Toggle Toolbar */}
-                <div className="flex items-center justify-between gap-2 p-2 bg-slate-50 rounded-xl border border-emerald-900/5 text-[9px] font-bold">
-                  <button 
-                    type="button"
-                    onClick={() => handleToggleQuickVisibility(product)}
-                    className={`flex items-center gap-1 px-2.5 py-1 rounded-lg transition-all cursor-pointer ${!isHidden ? 'bg-emerald-100 text-emerald-900 font-black' : 'bg-zinc-200 text-zinc-600'}`}
-                  >
-                    <span className="material-symbols-outlined text-xs">{!isHidden ? 'visibility' : 'visibility_off'}</span>
-                    <span>{!isHidden ? 'Visible' : 'Hidden'}</span>
-                  </button>
-
-                  <button 
-                    type="button"
-                    onClick={() => handleToggleQuickBestSeller(product)}
-                    className={`flex items-center gap-1 px-2.5 py-1 rounded-lg transition-all cursor-pointer ${product.isBestSeller ? 'bg-amber-100 text-amber-900 font-black' : 'bg-zinc-100 text-zinc-500 hover:bg-zinc-200'}`}
-                  >
-                    <span className="material-symbols-outlined text-xs">star</span>
-                    <span>{product.isBestSeller ? 'Best Seller' : 'Normal'}</span>
-                  </button>
-
-                  <span className="text-zinc-400 font-mono text-[9px]">P:{product.priority || 0}</span>
-                </div>
-
-                {/* Performance Statistics */}
-                <div className="bg-emerald-950/5 p-3 rounded-2xl border border-emerald-900/5 grid grid-cols-2 text-center">
-                  <div className="border-r border-emerald-900/10 pr-2">
-                    <span className="text-[8px] font-black text-emerald-900/40 uppercase tracking-widest">Units Sold</span>
-                    <p className="text-xs font-black text-emerald-950 mt-0.5">{analytics.unitsSold} units</p>
-                  </div>
-                  <div className="pl-2">
-                    <span className="text-[8px] font-black text-emerald-900/40 uppercase tracking-widest">Sales Revenue</span>
-                    <p className="text-xs font-black text-emerald-950 mt-0.5">₹{analytics.revenue}</p>
-                  </div>
-                </div>
-
-                {/* Stock Status Badge */}
-                <div className="pt-2 border-t border-emerald-900/5">
-                  {product.isCombo ? (
-                    computedStock === 0 ? (
-                      <div className="bg-red-600 border border-red-700 text-white text-[10px] font-black uppercase tracking-widest py-2.5 rounded-2xl flex items-center justify-center gap-1.5 shadow-sm">
-                        <span className="material-symbols-outlined text-sm">report</span> Out of Stock
-                      </div>
+                  {/* Stock Status Badge */}
+                  <div>
+                    {product.isCombo ? (
+                      computedStock === 0 ? (
+                        <div className="bg-rose-50 text-rose-700 border border-rose-200 text-[10px] font-semibold uppercase tracking-wider py-2 rounded-xl flex items-center justify-center gap-1.5">
+                          <span className="material-symbols-outlined text-sm">report</span> Out of Stock
+                        </div>
+                      ) : (
+                        <div className="bg-slate-100 text-slate-700 border border-slate-200 text-[10px] font-semibold uppercase tracking-wider py-2 rounded-xl flex items-center justify-center gap-1.5">
+                          <span className="material-symbols-outlined text-sm">layers</span> Derived Stock: {computedStock} Packs
+                        </div>
+                      )
                     ) : (
-                      <div className="bg-sky-600 border border-sky-700 text-white text-[10px] font-black uppercase tracking-widest py-2.5 rounded-2xl flex items-center justify-center gap-1.5 shadow-sm">
-                        <span className="material-symbols-outlined text-sm">layers</span> Derived Stock: {computedStock} Packs
-                      </div>
-                    )
-                  ) : (
-                    computedStock === 0 ? (
-                      <div className="bg-red-600 border border-red-700 text-white text-[10px] font-black uppercase tracking-widest py-2.5 rounded-2xl flex items-center justify-center gap-1.5 shadow-sm">
-                        <span className="material-symbols-outlined text-sm">report</span> Out of Stock
-                      </div>
-                    ) : computedStock < 10 ? (
-                      <div className="bg-amber-500 border border-amber-600 text-white text-[10px] font-black uppercase tracking-widest py-2.5 rounded-2xl flex items-center justify-center gap-1.5 animate-pulse shadow-sm">
-                        <span className="material-symbols-outlined text-sm">warning</span> Low Stock: {computedStock} Units
-                      </div>
-                    ) : (
-                      <div className="bg-emerald-600 border border-emerald-700 text-white text-[10px] font-black uppercase tracking-widest py-2.5 rounded-2xl flex items-center justify-center gap-1.5 shadow-sm">
-                        <span className="material-symbols-outlined text-sm">check_circle</span> In Stock: {computedStock} Units
-                      </div>
-                    )
-                  )}
-                </div>
+                      computedStock === 0 ? (
+                        <div className="bg-rose-50 text-rose-700 border border-rose-200 text-[10px] font-semibold uppercase tracking-wider py-2 rounded-xl flex items-center justify-center gap-1.5">
+                          <span className="material-symbols-outlined text-sm">report</span> Out of Stock
+                        </div>
+                      ) : computedStock < 10 ? (
+                        <div className="bg-amber-50 text-amber-800 border border-amber-200 text-[10px] font-semibold uppercase tracking-wider py-2 rounded-xl flex items-center justify-center gap-1.5">
+                          <span className="material-symbols-outlined text-sm">warning</span> Low Stock: {computedStock} Units
+                        </div>
+                      ) : (
+                        <div className="bg-emerald-50 text-emerald-800 border border-emerald-200 text-[10px] font-semibold uppercase tracking-wider py-2 rounded-xl flex items-center justify-center gap-1.5">
+                          <span className="material-symbols-outlined text-sm">check_circle</span> In Stock: {computedStock} Units
+                        </div>
+                      )
+                    )}
+                  </div>
 
-                {/* CRUD buttons */}
-                <div className="grid grid-cols-2 gap-2 pt-1.5">
-                  <button 
-                    onClick={() => handleOpenEditProduct(product)}
-                    className="flex items-center justify-center gap-1.5 py-3 bg-emerald-900 text-white hover:bg-emerald-800 border border-emerald-950 rounded-xl font-black uppercase tracking-wider text-[10px] transition-all shadow-md shadow-emerald-900/10 active:scale-95 cursor-pointer"
-                  >
-                    <span className="material-symbols-outlined text-sm">tune</span> Configure
-                  </button>
-                  <button 
-                    onClick={() => handleDeleteProduct(product.id)}
-                    className="flex items-center justify-center gap-1.5 py-3 bg-red-600 text-white hover:bg-red-700 border border-red-700 rounded-xl font-black uppercase tracking-wider text-[10px] transition-all shadow-md shadow-red-600/10 active:scale-95 cursor-pointer"
-                  >
-                    <span className="material-symbols-outlined text-sm">delete</span> Delete
-                  </button>
+                  {/* Action Buttons */}
+                  <div className="grid grid-cols-2 gap-2 pt-1">
+                    <button 
+                      onClick={() => handleOpenEditProduct(product)}
+                      className="flex items-center justify-center gap-1 py-2.5 bg-slate-800 hover:bg-slate-900 text-white rounded-xl font-semibold text-[10px] uppercase tracking-wider transition-all cursor-pointer"
+                    >
+                      <span className="material-symbols-outlined text-sm">tune</span> Configure
+                    </button>
+                    <button 
+                      onClick={() => handleDeleteProduct(product.id)}
+                      className="flex items-center justify-center gap-1 py-2.5 bg-rose-50 hover:bg-rose-600 text-rose-700 hover:text-white border border-rose-200 rounded-xl font-semibold text-[10px] uppercase tracking-wider transition-all cursor-pointer"
+                    >
+                      <span className="material-symbols-outlined text-sm">delete</span> Delete
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
-          );
-        }))}
+            );
+          })
+        )}
 
         {!loading && filteredAndSortedProducts.length === 0 && (
-          <div className="col-span-full py-16 text-center text-emerald-900/35 font-bold uppercase text-xs tracking-widest">
+          <div className="col-span-full py-16 text-center text-slate-400 font-semibold uppercase text-xs tracking-wider">
             No matching assets in inventory.
           </div>
         )}
       </div>
 
-      {/* STEP WIZARD MODAL: CONFIGURATION & LIVE STOREFRONT PREVIEW */}
+      {/* MODERN MINIMALIST STEPPER MODAL */}
       {isProductModalOpen && (
-        <div className="fixed inset-0 z-100 flex items-center justify-center p-4 sm:p-6 animate-in fade-in duration-300">
-          <div className="absolute inset-0 bg-emerald-950/50 backdrop-blur-md" onClick={() => setIsProductModalOpen(false)}></div>
+        <div className="fixed inset-0 z-100 flex items-center justify-center p-3 sm:p-6 animate-in fade-in duration-300">
+          <div className="absolute inset-0 bg-slate-950/40 backdrop-blur-sm" onClick={() => setIsProductModalOpen(false)}></div>
           
-          <div className="bg-white w-full max-w-5xl max-h-[92vh] rounded-[2.5rem] shadow-2xl flex flex-col relative z-10 animate-in zoom-in-95 duration-300 overflow-hidden border border-emerald-900/10">
-            {/* Header & Step Wizard Indicator */}
-            <header className="p-6 border-b border-emerald-900/10 bg-emerald-50/50 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-emerald-900 text-white flex items-center justify-center shadow-md shrink-0">
-                  <span className="material-symbols-outlined text-xl">tune</span>
-                </div>
+          <div className="bg-white w-full max-w-4xl max-h-[92vh] rounded-2xl shadow-xl flex flex-col relative z-10 animate-in zoom-in-95 duration-300 overflow-hidden border border-slate-200/80">
+            
+            {/* Minimalist Header & Stepper Bar */}
+            <header className="p-5 border-b border-slate-100 bg-slate-50/60 flex flex-col gap-3.5">
+              <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-xl font-black uppercase tracking-tight text-emerald-950">
-                    {editingProduct ? 'Configure Catalog Asset' : 'Add New Catalog Asset'}
+                  <h3 className="text-base font-bold uppercase tracking-tight text-slate-800">
+                    {editingProduct ? 'Configure Catalog Asset' : 'New Catalog Product'}
                   </h3>
-                  <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider">Sequential Wizard Config with Google Drive Cloud Storage</p>
+                  <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">Step {stepperStep} of 4 • Studio Configurator</p>
                 </div>
-              </div>
-
-              {/* Wizard Steps Pills */}
-              <div className="flex items-center gap-1.5 bg-white p-1.5 rounded-2xl border border-emerald-900/10 shadow-xs self-start sm:self-auto">
-                <button 
-                  type="button" 
-                  onClick={() => setModalStep(1)}
-                  className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all ${modalStep === 1 ? 'bg-emerald-900 text-white shadow-sm' : 'text-emerald-900/60 hover:text-emerald-900'}`}
-                >
-                  1. Category
-                </button>
-                <button 
-                  type="button" 
-                  onClick={() => setModalStep(2)}
-                  className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all ${modalStep === 2 ? 'bg-emerald-900 text-white shadow-sm' : 'text-emerald-900/60 hover:text-emerald-900'}`}
-                >
-                  2. Details
-                </button>
-                <button 
-                  type="button" 
-                  onClick={() => setModalStep(3)}
-                  className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all ${modalStep === 3 ? 'bg-emerald-900 text-white shadow-sm' : 'text-emerald-900/60 hover:text-emerald-900'}`}
-                >
-                  3. Photos ({uploadedPhotos.length})
-                </button>
 
                 <button 
                   onClick={() => setIsProductModalOpen(false)}
-                  className="w-8 h-8 rounded-full bg-emerald-950/5 hover:bg-emerald-900 hover:text-white text-emerald-950 flex items-center justify-center transition-all ml-2 cursor-pointer"
+                  className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition-all cursor-pointer shrink-0"
                 >
                   <span className="material-symbols-outlined text-sm">close</span>
                 </button>
               </div>
+
+              {/* Minimalist Horizontal Stepper Bar */}
+              <div className="grid grid-cols-4 gap-2 pt-0.5">
+                {[
+                  { step: 1, label: 'Format & Category', icon: 'category' },
+                  { step: 2, label: 'Details & Pricing', icon: 'payments' },
+                  { step: 3, label: 'Photos & Custom Tag', icon: 'photo_library' },
+                  { step: 4, label: 'Review & Publish', icon: 'verified' }
+                ].map(({ step, label, icon }) => (
+                  <button
+                    key={step}
+                    type="button"
+                    onClick={() => setStepperStep(step as any)}
+                    className={`flex items-center gap-2 p-2 rounded-xl border transition-all cursor-pointer ${stepperStep === step ? 'bg-emerald-800 text-white border-emerald-800 shadow-xs' : stepperStep > step ? 'bg-emerald-50/80 text-emerald-900 border-emerald-200/60' : 'bg-white text-slate-400 border-slate-200/80 hover:border-slate-300'}`}
+                  >
+                    <div className={`w-5 h-5 rounded-lg flex items-center justify-center text-[10px] font-bold shrink-0 ${stepperStep === step ? 'bg-white text-emerald-900' : stepperStep > step ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-400'}`}>
+                      {stepperStep > step ? '✓' : step}
+                    </div>
+                    <span className="text-[10px] font-semibold uppercase tracking-wider truncate hidden md:inline">{label}</span>
+                  </button>
+                ))}
+              </div>
             </header>
 
-            {/* Split View Container */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 overflow-y-auto grow custom-scrollbar">
-              {/* Left Column: Multi-Step Form (7 cols) */}
-              <form onSubmit={handleSaveProduct} id="config-form" className="lg:col-span-7 p-6 space-y-6 border-r border-emerald-900/10 flex flex-col justify-between">
+            {/* Stepper Content Area */}
+            <div className="p-6 overflow-y-auto grow custom-scrollbar">
+              <form id="stepper-form" onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault(); }} className="space-y-6">
                 
-                {/* STEP 1: Choose Category & Product Type */}
-                {modalStep === 1 && (
-                  <div className="space-y-6 animate-in fade-in duration-300">
-                    <div className="space-y-1">
-                      <span className="text-[10px] font-black uppercase tracking-widest text-emerald-800 bg-emerald-100 px-2.5 py-0.5 rounded-full">Step 1 of 3</span>
-                      <h4 className="text-lg font-black uppercase text-emerald-950 pt-1">Select Frontstore Category</h4>
-                      <p className="text-xs text-zinc-500">Choose where this product appears in the storefront catalog.</p>
+                {/* STEP 1: FORMAT & CATEGORY */}
+                {stepperStep === 1 && (
+                  <div className="space-y-6 animate-in fade-in duration-300 max-w-2xl mx-auto py-1">
+                    <div className="space-y-1 text-center">
+                      <span className="text-[10px] font-semibold uppercase tracking-wider text-emerald-800 bg-emerald-50 border border-emerald-200/60 px-3 py-1 rounded-full">Step 1 of 4</span>
+                      <h4 className="text-base font-bold uppercase tracking-tight text-slate-800 pt-2">Select Asset Format & Category</h4>
+                      <p className="text-xs text-slate-500 font-medium">Choose whether this item is a single jar/pouch or a multi-flavor combo bundle.</p>
+                    </div>
+
+                    {/* Format Selection Cards */}
+                    <div className="grid grid-cols-2 gap-4">
+                      <button
+                        type="button"
+                        onClick={() => setIsCombo(false)}
+                        className={`p-4 sm:p-5 rounded-2xl border transition-all text-left flex flex-col justify-between gap-3 cursor-pointer ${!isCombo ? 'border-emerald-600/50 bg-emerald-50/40 shadow-xs' : 'border-slate-200 hover:border-slate-300 bg-white'}`}
+                      >
+                        <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${!isCombo ? 'bg-emerald-800 text-white' : 'bg-slate-100 text-slate-400'}`}>
+                          <span className="material-symbols-outlined text-lg">local_drink</span>
+                        </div>
+                        <div>
+                          <span className="text-xs font-bold uppercase tracking-wider text-slate-800 block">Single Product</span>
+                          <span className="text-[11px] text-slate-400 font-medium block">Standalone Jar or 20g Pouch</span>
+                        </div>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsCombo(true);
+                          setProdCategory('Combos');
+                        }}
+                        className={`p-4 sm:p-5 rounded-2xl border transition-all text-left flex flex-col justify-between gap-3 cursor-pointer ${isCombo ? 'border-amber-500/50 bg-amber-50/40 shadow-xs' : 'border-slate-200 hover:border-slate-300 bg-white'}`}
+                      >
+                        <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${isCombo ? 'bg-amber-600 text-white' : 'bg-slate-100 text-slate-400'}`}>
+                          <span className="material-symbols-outlined text-lg">inventory_2</span>
+                        </div>
+                        <div>
+                          <span className="text-xs font-bold uppercase tracking-wider text-amber-950 block">Combo Pack</span>
+                          <span className="text-[11px] text-slate-400 font-medium block">Multi-Flavor Bundle</span>
+                        </div>
+                      </button>
                     </div>
 
                     {/* Category Selection Grid */}
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-emerald-900/60 block">Category Section *</label>
-                      <div className="grid grid-cols-2 gap-3">
-                        {STOREFRONT_CATEGORIES.map(cat => (
+                    <div className="space-y-2 pt-1">
+                      <label className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 block text-center">Storefront Category Location *</label>
+                      <div className="grid grid-cols-3 gap-3">
+                        {STOREFRONT_CATEGORIES.map((cat) => (
                           <button
                             key={cat}
                             type="button"
                             onClick={() => setProdCategory(cat)}
-                            className={`p-4 rounded-2xl border text-left flex flex-col justify-between gap-2 transition-all cursor-pointer ${prodCategory === cat ? 'border-emerald-600 bg-emerald-50/80 ring-2 ring-emerald-600 shadow-sm' : 'border-emerald-900/10 bg-slate-50 hover:bg-emerald-950/5'}`}
+                            className={`p-3 rounded-xl border text-center text-xs font-semibold uppercase tracking-wider transition-all cursor-pointer ${prodCategory === cat ? 'bg-emerald-800 text-white border-emerald-800 shadow-xs' : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200'}`}
                           >
-                            <span className="material-symbols-outlined text-emerald-900 text-xl">
-                              {cat.includes('Jar') ? 'local_bar' : cat.includes('Pouch') ? 'inventory_2' : 'card_giftcard'}
-                            </span>
-                            <span className="text-xs font-black uppercase tracking-wider text-emerald-950">{cat}</span>
+                            <span>{cat}</span>
                           </button>
                         ))}
                       </div>
                     </div>
 
-                    {/* Product Type Toggle */}
-                    <div className="space-y-2 pt-2">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-emerald-900/60 block">Asset Format Type *</label>
-                      <div className="flex bg-emerald-950/5 p-1 rounded-2xl border border-emerald-900/10">
-                        <button 
-                          type="button"
-                          onClick={() => setIsCombo(false)}
-                          className={`flex-1 py-3.5 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all cursor-pointer ${!isCombo ? 'bg-white text-emerald-950 shadow-md border border-emerald-900/5' : 'text-emerald-900/50 hover:text-emerald-900'}`}
-                        >
-                          Single Flavor Product
-                        </button>
-                        <button 
-                          type="button"
-                          onClick={() => setIsCombo(true)}
-                          className={`flex-1 py-3.5 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all cursor-pointer ${isCombo ? 'bg-white text-emerald-950 shadow-md border border-emerald-900/5' : 'text-emerald-900/50 hover:text-emerald-900'}`}
-                        >
-                          Multi-Flavor Combo Pack
-                        </button>
-                      </div>
-                    </div>
+                    {/* Combo Ingredients Selector if Combo selected */}
+                    {isCombo && (
+                      <div className="space-y-3 p-4 bg-amber-50/50 rounded-2xl border border-amber-200 animate-in fade-in">
+                        <div>
+                          <span className="text-[11px] font-bold uppercase tracking-wider text-amber-950 block">Select Flavor Products Inside Bundle *</span>
+                          <p className="text-[10px] text-amber-800 font-medium pt-0.5">
+                            A Combo Pack bundle contains multiple single flavor items (e.g. 1x Jar + 2x Pouches). Choose quantities for the items included in this combo box:
+                          </p>
+                        </div>
 
-                    <div className="pt-4 flex justify-end">
-                      <button
-                        type="button"
-                        onClick={() => setModalStep(2)}
-                        className="bg-emerald-900 hover:bg-emerald-800 text-white font-black text-xs uppercase tracking-widest px-6 py-3.5 rounded-xl shadow-lg flex items-center gap-2 cursor-pointer"
-                      >
-                        <span>Next: Product Details</span>
-                        <span className="material-symbols-outlined text-sm">arrow_forward</span>
-                      </button>
-                    </div>
+                        {products.filter(p => !p.isCombo).length === 0 ? (
+                          <div className="p-3 bg-white rounded-xl border border-amber-200 text-center space-y-1">
+                            <p className="text-xs font-semibold text-amber-900">No Standalone Products Found</p>
+                            <p className="text-[10px] text-slate-500 font-medium">Please save your single Jars or Pouches first before creating a multi-flavor Combo Pack bundle.</p>
+                          </div>
+                        ) : (
+                          <div className="space-y-2 max-h-48 overflow-y-auto custom-scrollbar pr-1">
+                            {products.filter(p => !p.isCombo).map((p) => {
+                              const qty = comboComponents[p.id] || 0;
+                              return (
+                                <div key={p.id} className="flex items-center justify-between p-2.5 bg-white rounded-xl border border-amber-200/80">
+                                  <div className="flex items-center gap-2.5">
+                                    <img src={p.imageSrc} alt={p.name} className="w-8 h-8 object-contain p-0.5 bg-slate-50 rounded-lg" />
+                                    <div>
+                                      <span className="text-xs font-semibold text-slate-800 block">{p.name}</span>
+                                      <span className="text-[9px] text-slate-400 font-medium block">₹{p.price}/- • {p.category}</span>
+                                    </div>
+                                  </div>
+                                  
+                                  <div className="flex items-center bg-amber-100/60 rounded-lg h-7 overflow-hidden border border-amber-300/60">
+                                    <button 
+                                      type="button"
+                                      onClick={() => updateComboComponentQty(p.id, qty - 1)}
+                                      className="w-7 h-full flex items-center justify-center text-amber-950 hover:bg-amber-200 cursor-pointer"
+                                    >
+                                      <span className="material-symbols-outlined text-[13px]">remove</span>
+                                    </button>
+                                    <span className="w-6 text-center text-xs font-bold text-amber-950">{qty}</span>
+                                    <button 
+                                      type="button"
+                                      onClick={() => updateComboComponentQty(p.id, qty + 1)}
+                                      className="w-8 h-full flex items-center justify-center text-amber-950 hover:bg-amber-200 cursor-pointer"
+                                    >
+                                      <span className="material-symbols-outlined text-[13px]">add</span>
+                                    </button>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )}
 
-                {/* STEP 2: Title, Description, Pricing, Stock & Options */}
-                {modalStep === 2 && (
-                  <div className="space-y-5 animate-in fade-in duration-300">
-                    <div className="space-y-1">
-                      <span className="text-[10px] font-black uppercase tracking-widest text-emerald-800 bg-emerald-100 px-2.5 py-0.5 rounded-full">Step 2 of 3</span>
-                      <h4 className="text-lg font-black uppercase text-emerald-950 pt-1">Product Details & Specs</h4>
+                {/* STEP 2: DETAILS & PRICING */}
+                {stepperStep === 2 && (
+                  <div className="space-y-5 animate-in fade-in duration-300 max-w-2xl mx-auto py-1">
+                    <div className="space-y-1 text-center">
+                      <span className="text-[10px] font-semibold uppercase tracking-wider text-emerald-800 bg-emerald-50 border border-emerald-200/60 px-3 py-1 rounded-full">Step 2 of 4</span>
+                      <h4 className="text-base font-bold uppercase tracking-tight text-slate-800 pt-2">Product Details & Pricing</h4>
+                      <p className="text-xs text-slate-500 font-medium">Specify asset title, flavor description, selling price, and MRP.</p>
                     </div>
 
-                    {/* Product Name */}
+                    {/* Title Input */}
                     <div className="space-y-1.5">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-emerald-900/60 block">Asset Title / Name *</label>
+                      <div className="flex justify-between items-center">
+                        <label className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 block">Product Title *</label>
+                        <span className="text-[10px] font-medium text-slate-400">{prodName.length}/60 chars</span>
+                      </div>
                       <input 
                         type="text" 
                         required
+                        maxLength={60}
                         value={prodName}
                         onChange={(e) => setProdName(e.target.value)}
-                        placeholder={isCombo ? "e.g. Signature Party Bundle" : "e.g. Blue Lagoon Mocktail Jar (500g)"} 
-                        className="w-full bg-emerald-950/5 border border-emerald-900/10 rounded-xl px-4 py-3 text-xs font-bold outline-none focus:border-emerald-600 focus:bg-white transition-all text-emerald-950"
+                        placeholder="e.g. Blue Lagoon Botanical Jar" 
+                        className="w-full bg-slate-50/60 border border-slate-200 rounded-xl px-4 py-3 text-xs font-semibold outline-none focus:border-emerald-600 focus:bg-white transition-all text-slate-800 placeholder-slate-400"
                       />
                     </div>
 
-                    {/* Description */}
+                    {/* Description Textarea */}
                     <div className="space-y-1.5">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-emerald-900/60 block">Description *</label>
+                      <label className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 block">Flavor Description & Preparation Notes *</label>
                       <textarea 
                         required
+                        rows={3}
                         value={prodDesc}
                         onChange={(e) => setProdDesc(e.target.value)}
-                        placeholder="Describe flavor notes, ingredients, or bundle details..." 
-                        rows={3}
-                        className="w-full bg-emerald-950/5 border border-emerald-900/10 rounded-xl px-4 py-3 text-xs font-bold outline-none focus:border-emerald-600 focus:bg-white transition-all text-emerald-950 resize-none"
-                      />
+                        placeholder="Describe flavor profile, ingredients, and preparation steps..." 
+                        className="w-full bg-slate-50/60 border border-slate-200 rounded-xl p-3.5 text-xs font-medium outline-none focus:border-emerald-600 focus:bg-white transition-all text-slate-800 placeholder-slate-400 leading-relaxed custom-scrollbar"
+                      ></textarea>
                     </div>
 
-                    {/* Price & Stock */}
-                    <div className="grid grid-cols-2 gap-4">
+                    {/* Pricing & Stock Grid */}
+                    <div className="grid grid-cols-2 gap-4 bg-slate-50/60 p-4 rounded-2xl border border-slate-200/80">
                       <div className="space-y-1.5">
-                        <label className="text-[10px] font-black uppercase tracking-widest text-emerald-900/60 block">Selling Price (₹) *</label>
-                        <input 
-                          type="number" 
-                          required
-                          value={prodPrice}
-                          onChange={(e) => setProdPrice(Number(e.target.value))}
-                          min={0}
-                          className="w-full bg-emerald-950/5 border border-emerald-900/10 rounded-xl px-4 py-3 text-xs font-bold outline-none focus:border-emerald-600 focus:bg-white transition-all text-emerald-950"
-                        />
+                        <label className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 block">Selling Price (₹) *</label>
+                        <div className="relative">
+                          <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-xs font-semibold text-slate-400">₹</span>
+                          <input 
+                            type="number" 
+                            required
+                            value={prodPrice}
+                            onChange={(e) => setProdPrice(Number(e.target.value))}
+                            min={0}
+                            className="w-full bg-white border border-slate-200 rounded-xl pl-8 pr-4 py-2.5 text-xs font-semibold outline-none focus:border-emerald-600 text-slate-800"
+                          />
+                        </div>
                       </div>
+
+                      <div className="space-y-1.5">
+                        <div className="flex justify-between items-center">
+                          <label className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 block">MRP (Crossed Price)</label>
+                          {discountPct > 0 && (
+                            <span className="text-[9px] font-bold text-rose-600 bg-rose-50 px-2 py-0.5 rounded-md uppercase tracking-wider">{discountPct}% OFF</span>
+                          )}
+                        </div>
+                        <div className="relative">
+                          <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-xs font-semibold text-slate-400">₹</span>
+                          <input 
+                            type="number" 
+                            value={prodMrp}
+                            onChange={(e) => setProdMrp(Number(e.target.value))}
+                            min={0}
+                            placeholder="e.g. 599"
+                            className="w-full bg-white border border-slate-200 rounded-xl pl-8 pr-4 py-2.5 text-xs font-semibold outline-none focus:border-emerald-600 text-slate-800"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Stock Units & Display Priority */}
+                    <div className="grid grid-cols-2 gap-4">
                       {!isCombo ? (
-                        <div className="space-y-1.5 animate-in fade-in duration-300">
-                          <label className="text-[10px] font-black uppercase tracking-widest text-emerald-900/60 block">Stock Units *</label>
+                        <div className="space-y-1.5">
+                          <div className="flex justify-between items-center">
+                            <label className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 block">Stock Units Available *</label>
+                            <span className={`text-[9px] font-semibold uppercase px-2 py-0.5 rounded-full ${prodStock === 0 ? 'bg-rose-50 text-rose-700' : prodStock < 10 ? 'bg-amber-50 text-amber-800' : 'bg-emerald-50 text-emerald-800'}`}>
+                              {prodStock === 0 ? 'Out of Stock' : prodStock < 10 ? 'Low Stock' : 'In Stock'}
+                            </span>
+                          </div>
                           <input 
                             type="number" 
                             required
                             value={prodStock}
                             onChange={(e) => setProdStock(Number(e.target.value))}
                             min={0}
-                            className="w-full bg-emerald-950/5 border border-emerald-900/10 rounded-xl px-4 py-3 text-xs font-bold outline-none focus:border-emerald-600 focus:bg-white transition-all text-emerald-950"
+                            className="w-full bg-slate-50/60 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-semibold outline-none focus:border-emerald-600 focus:bg-white text-slate-800"
                           />
                         </div>
                       ) : (
-                        <div className="space-y-1.5 opacity-60">
-                          <label className="text-[10px] font-black uppercase tracking-widest text-emerald-900/60 block">Stock Level</label>
-                          <div className="bg-emerald-950/5 border border-emerald-900/10 rounded-xl px-4 py-3 text-xs font-bold text-emerald-900/75 select-none">
-                            Derived dynamically
+                        <div className="space-y-1.5">
+                          <label className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 block">Combo Stock Status</label>
+                          <div className="bg-amber-50/60 border border-amber-900/10 rounded-xl px-4 py-2.5 text-xs font-medium text-amber-950 flex items-center gap-2">
+                            <span className="material-symbols-outlined text-base text-amber-600">auto_mode</span>
+                            <span>Derived dynamically</span>
                           </div>
                         </div>
                       )}
-                    </div>
 
-                    {/* MRP & Display Priority */}
-                    <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-1.5">
-                        <div className="flex justify-between items-center">
-                          <label className="text-[10px] font-black uppercase tracking-widest text-emerald-900/60 block">MRP (Crossed Price)</label>
-                          {discountPct > 0 && (
-                            <span className="text-[9px] font-black text-rose-600 uppercase">{discountPct}% OFF</span>
-                          )}
-                        </div>
-                        <input 
-                          type="number" 
-                          value={prodMrp}
-                          onChange={(e) => setProdMrp(Number(e.target.value))}
-                          min={0}
-                          placeholder="e.g. 599"
-                          className="w-full bg-emerald-950/5 border border-emerald-900/10 rounded-xl px-4 py-3 text-xs font-bold outline-none focus:border-emerald-600 focus:bg-white transition-all text-emerald-950"
-                        />
-                      </div>
-                      <div className="space-y-1.5">
-                        <label className="text-[10px] font-black uppercase tracking-widest text-emerald-900/60 block">Display Priority Order</label>
+                        <label className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 block">Display Priority Rank</label>
                         <input 
                           type="number" 
                           value={prodPriority}
                           onChange={(e) => setProdPriority(Number(e.target.value))}
-                          className="w-full bg-emerald-950/5 border border-emerald-900/10 rounded-xl px-4 py-3 text-xs font-bold outline-none focus:border-emerald-600 focus:bg-white transition-all text-emerald-950"
-                          title="Lower number renders first on storefront"
+                          className="w-full bg-slate-50/60 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-semibold outline-none focus:border-emerald-600 focus:bg-white text-slate-800"
+                          title="Lower number renders first"
                         />
                       </div>
-                    </div>
-
-                    {/* Badges Toggle */}
-                    <div className="flex items-center gap-3 pt-1">
-                      <label className="flex items-center gap-2 p-3 bg-emerald-950/5 border border-emerald-900/10 rounded-xl cursor-pointer select-none grow">
-                        <input 
-                          type="checkbox" 
-                          checked={prodShowInStorefront}
-                          onChange={(e) => setProdShowInStorefront(e.target.checked)}
-                          className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 accent-emerald-800"
-                        />
-                        <span className="text-[10px] font-black uppercase tracking-widest text-emerald-950">Show in Store</span>
-                      </label>
-
-                      <label className="flex items-center gap-2 p-3 bg-amber-50 border border-amber-900/10 rounded-xl cursor-pointer select-none grow">
-                        <input 
-                          type="checkbox" 
-                          checked={prodIsBestSeller}
-                          onChange={(e) => setProdIsBestSeller(e.target.checked)}
-                          className="w-4 h-4 rounded text-amber-600 focus:ring-amber-500 accent-amber-600"
-                        />
-                        <span className="text-[10px] font-black uppercase tracking-widest text-amber-950">Best Seller</span>
-                      </label>
-                    </div>
-
-                    {/* Combo components Selector */}
-                    {isCombo && (
-                      <div className="space-y-3 p-4 bg-emerald-950/5 rounded-2xl border border-emerald-900/10 animate-in slide-in-from-top-2 duration-300">
-                        <span className="text-[10px] font-black uppercase tracking-widest text-emerald-900/60 block">Combo Ingredients Selection</span>
-                        <div className="space-y-2 max-h-40 overflow-y-auto custom-scrollbar pr-1">
-                          {products.filter(p => !p.isCombo).map((p) => {
-                            const qty = comboComponents[p.id] || 0;
-                            return (
-                              <div key={p.id} className="flex items-center justify-between p-2.5 bg-white rounded-xl border border-emerald-900/5">
-                                <div className="flex items-center gap-2">
-                                  <img src={p.imageSrc} alt={p.name} className="w-8 h-8 object-contain" />
-                                  <span className="text-xs font-bold text-emerald-950">{p.name}</span>
-                                </div>
-                                
-                                <div className="flex items-center bg-emerald-50 rounded-lg h-8 overflow-hidden border border-emerald-900/5">
-                                  <button 
-                                    type="button"
-                                    onClick={() => updateComboComponentQty(p.id, qty - 1)}
-                                    className="w-8 h-full flex items-center justify-center text-emerald-950 hover:bg-emerald-100 transition-colors"
-                                  >
-                                    <span className="material-symbols-outlined text-[14px]">remove</span>
-                                  </button>
-                                  <span className="w-8 text-center text-xs font-bold text-emerald-950">{qty}</span>
-                                  <button 
-                                    type="button"
-                                    onClick={() => updateComboComponentQty(p.id, qty + 1)}
-                                    className="w-8 h-full flex items-center justify-center text-emerald-950 hover:bg-emerald-100 transition-colors"
-                                  >
-                                    <span className="material-symbols-outlined text-[14px]">add</span>
-                                  </button>
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
-
-                    <div className="pt-4 flex justify-between">
-                      <button
-                        type="button"
-                        onClick={() => setModalStep(1)}
-                        className="bg-white border border-emerald-900/15 text-emerald-900 font-black text-xs uppercase tracking-widest px-5 py-3.5 rounded-xl hover:bg-emerald-950/5 transition-all flex items-center gap-1 cursor-pointer"
-                      >
-                        <span className="material-symbols-outlined text-sm">arrow_back</span>
-                        <span>Back</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setModalStep(3)}
-                        className="bg-emerald-900 hover:bg-emerald-800 text-white font-black text-xs uppercase tracking-widest px-6 py-3.5 rounded-xl shadow-lg flex items-center gap-2 cursor-pointer"
-                      >
-                        <span>Next: Sequential Photos ({uploadedPhotos.length})</span>
-                        <span className="material-symbols-outlined text-sm">arrow_forward</span>
-                      </button>
                     </div>
                   </div>
                 )}
 
-                {/* STEP 3: Sequential Photo Uploads & Order Arrangement controls */}
-                {modalStep === 3 && (
-                  <div className="space-y-5 animate-in fade-in duration-300">
-                    <div className="space-y-1">
-                      <span className="text-[10px] font-black uppercase tracking-widest text-emerald-800 bg-emerald-100 px-2.5 py-0.5 rounded-full">Step 3 of 3</span>
-                      <h4 className="text-lg font-black uppercase text-emerald-950 pt-1">Product Photo Gallery & Reordering</h4>
-                      <p className="text-xs text-zinc-500">Upload multiple photos, arrange sequence order, and delete unwanted images.</p>
+                {/* STEP 3: PHOTOS & CUSTOM TAG */}
+                {stepperStep === 3 && (
+                  <div className="space-y-5 animate-in fade-in duration-300 max-w-2xl mx-auto py-1">
+                    <div className="space-y-1 text-center">
+                      <span className="text-[10px] font-semibold uppercase tracking-wider text-emerald-800 bg-emerald-50 border border-emerald-200/60 px-3 py-1 rounded-full">Step 3 of 4</span>
+                      <h4 className="text-base font-bold uppercase tracking-tight text-slate-800 pt-2">Photos & Marketing Tag Builder</h4>
+                      <p className="text-xs text-slate-500 font-medium">Upload photos to Google Drive and configure a custom badge tag.</p>
                     </div>
 
-                    {/* Sequential File Upload Drop Area */}
-                    <div className="border-2 border-dashed border-emerald-900/20 bg-emerald-50/40 rounded-2xl p-5 text-center space-y-2.5 hover:bg-emerald-50/80 transition-all relative">
+                    {/* Google Drive Upload Box */}
+                    <div className="border border-dashed border-slate-300 bg-slate-50/50 rounded-2xl p-5 text-center space-y-2 hover:bg-slate-50 transition-all relative">
                       <input 
                         type="file" 
                         multiple
@@ -1117,257 +1145,288 @@ export default function CatalogPage() {
                         className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10 disabled:cursor-not-allowed"
                       />
 
-                      <div className="w-10 h-10 rounded-full bg-emerald-900 text-white mx-auto flex items-center justify-center shadow-md">
-                        <span className="material-symbols-outlined text-xl">cloud_upload</span>
+                      <div className="w-9 h-9 rounded-full bg-emerald-800 text-white mx-auto flex items-center justify-center shadow-xs">
+                        <span className="material-symbols-outlined text-lg">cloud_upload</span>
                       </div>
 
                       {isUploadingToDrive ? (
                         <div className="space-y-1">
-                          <p className="text-xs font-black uppercase tracking-wider text-emerald-900 animate-pulse">{uploadStatusText || 'Uploading to Google Drive...'}</p>
-                          <div className="w-48 h-1.5 bg-emerald-200 rounded-full mx-auto overflow-hidden">
+                          <p className="text-xs font-semibold uppercase tracking-wider text-emerald-900 animate-pulse">{uploadStatusText || 'Uploading to Google Drive...'}</p>
+                          <div className="w-48 h-1 bg-emerald-200 rounded-full mx-auto overflow-hidden">
                             <div className="w-full h-full bg-emerald-800 animate-pulse"></div>
                           </div>
                         </div>
                       ) : (
                         <div className="space-y-1">
-                          <p className="text-xs font-black uppercase tracking-wider text-emerald-950">Click or Drag & Drop Photos to Upload</p>
-                          <p className="text-[10px] font-bold text-zinc-400">Uploads directly to Google Drive • Supports multiple sequential files</p>
+                          <p className="text-xs font-semibold uppercase tracking-wider text-slate-800">Click or Drag & Drop Photos to Upload</p>
+                          <p className="text-[10px] font-medium text-slate-400">Uploads directly to Google Drive • Supports multiple files</p>
                         </div>
                       )}
                     </div>
 
-                    {/* Google Drive OAuth 1-Click Authorize Banner */}
-                    <div className="flex items-center justify-between p-3 bg-amber-50/80 rounded-xl border border-amber-900/10 text-[10px] font-bold text-amber-950">
-                      <div className="flex items-center gap-2">
-                        <span className="material-symbols-outlined text-base text-amber-600">lock_open</span>
-                        <span>First time uploading? Authorize Google Account quota</span>
-                      </div>
-                      <a 
-                        href={`${(process.env.NEXT_PUBLIC_API_URL || 'https://ninjaro-x-or1s-hbdiel76e-ninjaro.vercel.app/api').replace(/\/$/, '')}/upload/auth`} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="bg-amber-600 hover:bg-amber-700 text-white font-black uppercase text-[9px] px-3 py-1.5 rounded-lg shadow-xs transition-all flex items-center gap-1"
-                      >
-                        <span>Authorize Drive</span>
-                        <span className="material-symbols-outlined text-[10px]">open_in_new</span>
-                      </a>
-                    </div>
-
-                    {/* Direct URL Input Fallback */}
-                    <div className="flex gap-2">
-                      <input 
-                        type="text" 
-                        value={customPhotoInput}
-                        onChange={(e) => setCustomPhotoInput(e.target.value)}
-                        placeholder="Or paste direct image URL (e.g. /bluelagoonjar.jpeg or https://...)" 
-                        className="grow bg-emerald-950/5 border border-emerald-900/10 rounded-xl px-4 py-2.5 text-xs font-bold outline-none focus:border-emerald-600 focus:bg-white text-emerald-950"
-                      />
-                      <button 
-                        type="button"
-                        onClick={handleAddCustomUrlPhoto}
-                        className="bg-emerald-900 hover:bg-emerald-800 text-white text-xs font-black uppercase tracking-wider px-4 py-2.5 rounded-xl cursor-pointer"
-                      >
-                        Add URL
-                      </button>
-                    </div>
-
-                    {/* Gallery Stream & Reorder / Delete Controls */}
-                    <div className="space-y-3 pt-2">
-                      <div className="flex items-center justify-between">
-                        <label className="text-[10px] font-black uppercase tracking-widest text-emerald-900/60 block">Photo Gallery Sequence ({uploadedPhotos.length})</label>
-                        {uploadedPhotos.length > 0 && (
+                    {/* Photo Sequence Manager */}
+                    {uploadedPhotos.length > 0 && (
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <label className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 block">Uploaded Photos ({uploadedPhotos.length})</label>
                           <button
                             type="button"
                             onClick={handleClearAllPhotos}
-                            className="text-[9px] font-black text-rose-600 uppercase tracking-widest hover:underline cursor-pointer"
+                            className="text-[9px] font-bold text-rose-600 uppercase tracking-wider hover:underline cursor-pointer"
                           >
-                            Clear All Photos
+                            Clear All
+                          </button>
+                        </div>
+
+                        <div className="grid grid-cols-3 gap-3 max-h-44 overflow-y-auto custom-scrollbar pr-1">
+                          {uploadedPhotos.map((photoUrl, idx) => (
+                            <div key={idx} className={`relative p-2 bg-white border rounded-xl flex flex-col items-center justify-between gap-1 group shadow-2xs ${idx === 0 ? 'border-emerald-600 ring-2 ring-emerald-600/20' : 'border-slate-200'}`}>
+                              <span className={`absolute top-1.5 left-1.5 text-[8px] font-mono px-1.5 py-0.5 rounded-md font-bold z-10 ${idx === 0 ? 'bg-emerald-800 text-white' : 'bg-slate-800 text-white'}`}>
+                                {idx === 0 ? '#1 COVER' : `#${idx + 1}`}
+                              </span>
+                              <button 
+                                type="button"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  handleRemovePhoto(idx);
+                                }}
+                                className="absolute top-1.5 right-1.5 w-5 h-5 rounded-full bg-rose-50 hover:bg-rose-600 text-rose-600 hover:text-white flex items-center justify-center z-10 cursor-pointer transition-colors"
+                              >
+                                <span className="material-symbols-outlined text-[11px]">close</span>
+                              </button>
+                              <div className="w-full h-16 flex items-center justify-center overflow-hidden rounded-lg bg-slate-50 mt-3">
+                                <img src={photoUrl} alt={`Photo ${idx + 1}`} className="h-full object-contain" />
+                              </div>
+                              {idx > 0 && (
+                                <button 
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    handleMakeCoverPhoto(idx);
+                                  }}
+                                  className="text-[8px] font-bold text-emerald-800 uppercase tracking-wider bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 px-2 py-0.5 rounded-md transition-all cursor-pointer mt-1"
+                                >
+                                  Make Cover
+                                </button>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Custom Tag Builder */}
+                    <div className="p-4 bg-slate-50/60 rounded-2xl border border-slate-200/80 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
+                          <span className="material-symbols-outlined text-sm text-slate-600">label</span>
+                          Custom Product Badge Tag
+                        </span>
+                        {prodCustomTag && (
+                          <button
+                            type="button"
+                            onClick={() => setProdCustomTag('')}
+                            className="text-[9px] font-bold text-rose-600 uppercase tracking-wider hover:underline cursor-pointer"
+                          >
+                            Remove Tag
                           </button>
                         )}
                       </div>
 
-                      {uploadedPhotos.length === 0 ? (
-                        <div className="p-6 bg-slate-50 rounded-2xl border border-emerald-900/10 text-center text-xs font-bold text-zinc-400">
-                          No photos uploaded yet. Select files above to upload directly to Google Drive.
-                        </div>
-                      ) : (
-                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 max-h-56 overflow-y-auto custom-scrollbar pr-1">
-                          {uploadedPhotos.map((photoUrl, idx) => (
-                            <div key={idx} className={`relative p-2.5 bg-white border-2 rounded-2xl flex flex-col items-center justify-between gap-2 group shadow-xs transition-all ${idx === 0 ? 'border-emerald-600 ring-2 ring-emerald-600/30' : 'border-zinc-200 hover:border-emerald-900/20'}`}>
-                              {/* Position Badge & Cover Tag */}
-                              <div className="absolute top-2 left-2 flex items-center gap-1 z-10">
-                                <span className="bg-zinc-900/80 backdrop-blur text-white text-[8px] font-mono px-1.5 py-0.5 rounded-md font-bold">
-                                  #{idx + 1}
-                                </span>
-                                {idx === 0 && (
-                                  <span className="bg-emerald-900 text-white text-[8px] font-black uppercase px-2 py-0.5 rounded-full shadow-xs">
-                                    Cover
-                                  </span>
-                                )}
-                              </div>
+                      {/* Presets */}
+                      <div className="flex flex-wrap gap-1.5">
+                        {TAG_PRESETS.map((preset) => (
+                          <button
+                            key={preset}
+                            type="button"
+                            onClick={() => setProdCustomTag(preset)}
+                            className={`px-2.5 py-1 rounded-lg text-[9px] font-semibold uppercase tracking-wider transition-all cursor-pointer ${prodCustomTag === preset ? 'bg-emerald-800 text-white' : 'bg-white text-slate-700 border border-slate-200 hover:border-slate-300'}`}
+                          >
+                            + {preset}
+                          </button>
+                        ))}
+                      </div>
 
-                              {/* Delete Quick Button Top Right */}
-                              <button 
-                                type="button"
-                                onClick={() => handleRemovePhoto(idx)}
-                                className="absolute top-2 right-2 w-6 h-6 rounded-full bg-rose-50 hover:bg-rose-600 text-rose-600 hover:text-white border border-rose-200 flex items-center justify-center transition-all z-10 cursor-pointer shadow-xs"
-                                title="Delete photo"
-                              >
-                                <span className="material-symbols-outlined text-[13px]">delete</span>
-                              </button>
+                      <input 
+                        type="text" 
+                        value={prodCustomTag}
+                        onChange={(e) => setProdCustomTag(e.target.value)}
+                        placeholder="Or type custom badge text (e.g. Sugar Free, Limited Edition...)" 
+                        className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-semibold outline-none focus:border-emerald-600 text-slate-800 placeholder-slate-400"
+                      />
 
-                              {/* Thumbnail */}
-                              <div className="w-full h-24 flex items-center justify-center overflow-hidden rounded-xl bg-slate-50 mt-4">
-                                <img src={photoUrl} alt={`Photo ${idx + 1}`} className="h-full object-contain" />
-                              </div>
+                      {prodCustomTag.trim() && (
+                        <div className="grid grid-cols-2 gap-3 pt-1">
+                          <div className="space-y-1">
+                            <label className="text-[9px] font-semibold uppercase tracking-wider text-slate-400 block">Placement Corner</label>
+                            <select 
+                              value={prodTagPosition}
+                              onChange={(e) => setProdTagPosition(e.target.value as any)}
+                              className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-[11px] font-semibold text-slate-800 outline-none cursor-pointer"
+                            >
+                              <option value="top-left">Top-Left</option>
+                              <option value="top-right">Top-Right</option>
+                              <option value="bottom-left">Bottom-Left</option>
+                              <option value="bottom-right">Bottom-Right</option>
+                            </select>
+                          </div>
 
-                              {/* Arrange & Delete Control Toolbar */}
-                              <div className="w-full pt-2 border-t border-zinc-100 flex flex-col gap-1.5">
-                                {/* Move Left / Move Right Buttons */}
-                                <div className="flex items-center justify-between gap-1 bg-slate-50 p-1 rounded-xl border border-zinc-200/60">
-                                  <button 
-                                    type="button"
-                                    disabled={idx === 0}
-                                    onClick={() => handleMovePhoto(idx, idx - 1)}
-                                    className="flex-1 py-1 bg-white hover:bg-emerald-50 text-emerald-950 disabled:opacity-30 disabled:hover:bg-white border border-zinc-200 rounded-lg text-[9px] font-black uppercase flex items-center justify-center gap-0.5 transition-all cursor-pointer disabled:cursor-not-allowed"
-                                    title="Move left"
-                                  >
-                                    <span className="material-symbols-outlined text-[12px]">arrow_back</span>
-                                    <span>Left</span>
-                                  </button>
-
-                                  <button 
-                                    type="button"
-                                    disabled={idx === uploadedPhotos.length - 1}
-                                    onClick={() => handleMovePhoto(idx, idx + 1)}
-                                    className="flex-1 py-1 bg-white hover:bg-emerald-50 text-emerald-950 disabled:opacity-30 disabled:hover:bg-white border border-zinc-200 rounded-lg text-[9px] font-black uppercase flex items-center justify-center gap-0.5 transition-all cursor-pointer disabled:cursor-not-allowed"
-                                    title="Move right"
-                                  >
-                                    <span>Right</span>
-                                    <span className="material-symbols-outlined text-[12px]">arrow_forward</span>
-                                  </button>
-                                </div>
-
-                                {/* Set as Cover / Delete Action bar */}
-                                <div className="flex items-center justify-between px-1">
-                                  {idx > 0 ? (
-                                    <button 
-                                      type="button"
-                                      onClick={() => handleMakeCoverPhoto(idx)}
-                                      className="text-emerald-800 hover:text-emerald-950 font-black text-[9px] uppercase tracking-wider flex items-center gap-0.5 cursor-pointer"
-                                    >
-                                      <span className="material-symbols-outlined text-[12px]">star</span>
-                                      <span>Set as Cover</span>
-                                    </button>
-                                  ) : (
-                                    <span className="text-emerald-900 font-black text-[9px] uppercase tracking-wider flex items-center gap-0.5">
-                                      <span className="material-symbols-outlined text-[12px]">check_circle</span>
-                                      <span>Primary Cover</span>
-                                    </span>
-                                  )}
-
-                                  <button 
-                                    type="button"
-                                    onClick={() => handleRemovePhoto(idx)}
-                                    className="text-rose-600 hover:text-rose-800 font-black text-[9px] uppercase tracking-wider flex items-center gap-0.5 cursor-pointer"
-                                  >
-                                    <span>Delete</span>
-                                  </button>
-                                </div>
-                              </div>
-                            </div>
-                          ))}
+                          <div className="space-y-1">
+                            <label className="text-[9px] font-semibold uppercase tracking-wider text-slate-400 block">Color Style</label>
+                            <select 
+                              value={prodTagColor}
+                              onChange={(e) => setProdTagColor(e.target.value)}
+                              className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-[11px] font-semibold text-slate-800 outline-none cursor-pointer"
+                            >
+                              <option value="black">Dark / Black</option>
+                              <option value="emerald">Emerald Green</option>
+                              <option value="amber">Gold / Amber</option>
+                              <option value="rose">Rose Red</option>
+                              <option value="indigo">Indigo Blue</option>
+                              <option value="purple">Royal Purple</option>
+                            </select>
+                          </div>
                         </div>
                       )}
                     </div>
+                  </div>
+                )}
 
-                    <div className="pt-4 flex justify-between">
-                      <button
-                        type="button"
-                        onClick={() => setModalStep(2)}
-                        className="bg-white border border-emerald-900/15 text-emerald-900 font-black text-xs uppercase tracking-widest px-5 py-3.5 rounded-xl hover:bg-emerald-950/5 transition-all flex items-center gap-1 cursor-pointer"
-                      >
-                        <span className="material-symbols-outlined text-sm">arrow_back</span>
-                        <span>Back</span>
-                      </button>
-                      <button
-                        type="submit"
-                        className="bg-emerald-900 hover:bg-emerald-800 text-white font-black text-xs uppercase tracking-widest px-8 py-3.5 rounded-xl shadow-xl shadow-emerald-900/20 cursor-pointer"
-                      >
-                        {editingProduct ? 'Save Product' : 'Publish Product'}
-                      </button>
+                {/* STEP 4: REVIEW & LIVE PREVIEW */}
+                {stepperStep === 4 && (
+                  <div className="space-y-5 animate-in fade-in duration-300 py-1">
+                    <div className="space-y-1 text-center">
+                      <span className="text-[10px] font-semibold uppercase tracking-wider text-emerald-800 bg-emerald-50 border border-emerald-200/60 px-3 py-1 rounded-full">Step 4 of 4</span>
+                      <h4 className="text-base font-bold uppercase tracking-tight text-slate-800 pt-2">Final Review & Storefront Preview</h4>
+                      <p className="text-xs text-slate-500 font-medium">Verify specs and inspect the live storefront card before publishing.</p>
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                      {/* Left: Specs Breakdown Summary (6 cols) */}
+                      <div className="lg:col-span-6 space-y-4">
+                        <div className="p-4 sm:p-5 bg-slate-50/60 rounded-2xl border border-slate-200/80 space-y-3">
+                          <h5 className="text-xs font-bold uppercase tracking-wider text-slate-800 border-b border-slate-200/80 pb-2">Asset Specs Checklist</h5>
+                          
+                          <div className="space-y-2 text-xs">
+                            <div className="flex justify-between py-1 border-b border-slate-100">
+                              <span className="text-slate-400 font-medium">Format Type:</span>
+                              <span className="font-semibold text-slate-800">{isCombo ? 'Multi-Flavor Combo Pack' : 'Single Product Item'}</span>
+                            </div>
+                            <div className="flex justify-between py-1 border-b border-slate-100">
+                              <span className="text-slate-400 font-medium">Category:</span>
+                              <span className="font-semibold text-slate-800">{prodCategory}</span>
+                            </div>
+                            <div className="flex justify-between py-1 border-b border-slate-100">
+                              <span className="text-slate-400 font-medium">Selling Price / MRP:</span>
+                              <span className="font-semibold text-slate-800">₹{prodPrice}/- {prodMrp > prodPrice ? `(MRP ₹${prodMrp})` : ''}</span>
+                            </div>
+                            <div className="flex justify-between py-1 border-b border-slate-100">
+                              <span className="text-slate-400 font-medium">Stock Available:</span>
+                              <span className="font-semibold text-slate-800">{isCombo ? 'Dynamic Derived' : `${prodStock} units`}</span>
+                            </div>
+                            <div className="flex justify-between py-1 border-b border-slate-100">
+                              <span className="text-slate-400 font-medium">Custom Tag Badge:</span>
+                              <span className="font-semibold text-slate-800">{prodCustomTag.trim() ? `${prodCustomTag} (${prodTagPosition})` : 'None'}</span>
+                            </div>
+                            <div className="flex justify-between py-1">
+                              <span className="text-slate-400 font-medium">Photos Count:</span>
+                              <span className="font-semibold text-slate-800">{uploadedPhotos.length} photos</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Validation Lock Warning */}
+                        {!isFormValid && (
+                          <div className="p-3.5 bg-amber-50/80 rounded-xl border border-amber-200 text-xs font-medium text-amber-950 flex items-center gap-2.5">
+                            <span className="material-symbols-outlined text-base text-amber-600 shrink-0">lock</span>
+                            <span>Enter Title, Description, and Selling Price to unlock the Publish button.</span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Right: Live Storefront Card Preview (6 cols) */}
+                      <div className="lg:col-span-6 flex flex-col items-center justify-center space-y-3">
+                        <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span> Live Frontstore Card Preview
+                        </span>
+
+                        <div className="w-full max-w-sm mx-auto shadow-lg rounded-2xl overflow-hidden border border-slate-200 bg-white">
+                          <ProductCard 
+                            id="preview-id"
+                            name={prodName || (isCombo ? 'Sample Combo Bundle' : 'Sample Mocktail')}
+                            description={prodDesc || 'Sample botanical flavor description will appear here...'}
+                            price={`₹${prodPrice || 0}/-`}
+                            imageSrc={activePreviewImage}
+                            imageAlt={prodName}
+                            topBgColor="bg-slate-50"
+                            bottomBgColor="bg-slate-100"
+                            buttonTextColor="text-emerald-900"
+                            quantity={0}
+                            stock={isCombo ? 50 : prodStock}
+                            mrp={prodMrp > prodPrice ? `₹${prodMrp}/-` : undefined}
+                            isBestSeller={prodIsBestSeller}
+                            customTag={prodCustomTag}
+                            tagPosition={prodTagPosition}
+                            tagColor={prodTagColor}
+                            isCombo={isCombo}
+                            comboImages={liveComboImages}
+                            onAddToCart={() => {}}
+                            onUpdateQuantity={() => {}}
+                          />
+                        </div>
+                      </div>
                     </div>
                   </div>
                 )}
               </form>
-
-              {/* Right Column: Live Frontstore Product Card Preview (5 cols) */}
-              <div className="lg:col-span-5 p-6 bg-slate-50 flex flex-col items-center justify-between border-t lg:border-t-0 border-emerald-900/10">
-                <div className="w-full space-y-4">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-emerald-900/60 flex items-center gap-1.5">
-                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span> Live Frontstore Preview
-                    </span>
-                    <span className="text-[9px] font-bold text-zinc-400 uppercase">Step {modalStep} of 3</span>
-                  </div>
-
-                  {/* Render Live ProductCard Component */}
-                  <div className="w-full max-w-sm mx-auto shadow-xl rounded-2xl overflow-hidden border border-emerald-900/10 bg-white">
-                    <ProductCard 
-                      id="preview-id"
-                      name={prodName || (isCombo ? 'Sample Combo Bundle' : 'Sample Mocktail')}
-                      description={prodDesc || 'Sample botanical flavor description will appear here...'}
-                      price={`₹${prodPrice || 0}/-`}
-                      imageSrc={activePreviewImage}
-                      imageAlt={prodName}
-                      topBgColor="bg-slate-50"
-                      bottomBgColor="bg-slate-100"
-                      buttonTextColor="text-emerald-900"
-                      quantity={0}
-                      stock={isCombo ? 50 : prodStock}
-                      mrp={prodMrp > prodPrice ? `₹${prodMrp}/-` : undefined}
-                      isBestSeller={prodIsBestSeller}
-                      isCombo={isCombo}
-                      comboImages={liveComboImages}
-                      onAddToCart={() => {}}
-                      onUpdateQuantity={() => {}}
-                    />
-                  </div>
-
-                  {/* Multi-Photo Thumbnails Stream Preview */}
-                  {uploadedPhotos.length > 1 && !isCombo && (
-                    <div className="w-full max-w-sm mx-auto p-3 bg-white rounded-2xl border border-emerald-900/10 space-y-2">
-                      <span className="text-[9px] font-black uppercase tracking-widest text-zinc-400 block">Gallery Photo Sequence ({uploadedPhotos.length})</span>
-                      <div className="flex gap-2 overflow-x-auto custom-scrollbar pb-1">
-                        {uploadedPhotos.map((url, i) => (
-                          <div key={i} className={`w-12 h-12 rounded-xl border p-1 flex items-center justify-center shrink-0 ${i === 0 ? 'border-emerald-600 ring-2 ring-emerald-600 bg-emerald-50' : 'border-zinc-200 bg-slate-50'}`}>
-                            <img src={url} alt="" className="h-full object-contain" />
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Footer Action Buttons */}
-                <div className="w-full flex gap-3 pt-6 mt-6 border-t border-emerald-900/10">
-                  <button 
-                    type="button" 
-                    onClick={() => setIsProductModalOpen(false)}
-                    className="w-1/2 py-3.5 bg-white border border-emerald-900/10 rounded-2xl text-xs font-black uppercase tracking-widest text-emerald-900/60 hover:bg-emerald-950/5 transition-all cursor-pointer"
-                  >
-                    Cancel
-                  </button>
-                  <button 
-                    type="submit" 
-                    form="config-form"
-                    className="w-1/2 py-3.5 bg-emerald-900 hover:bg-emerald-800 text-white rounded-2xl text-xs font-black uppercase tracking-widest transition-all shadow-xl shadow-emerald-900/20 cursor-pointer"
-                  >
-                    {editingProduct ? 'Save Changes' : 'Publish Asset'}
-                  </button>
-                </div>
-              </div>
             </div>
+
+            {/* STICKY FOOTER BAR WITH PROPER CORNER BUTTONS */}
+            <footer className="p-4 px-6 border-t border-slate-100 bg-slate-50/80 flex items-center justify-between shrink-0 z-10">
+              {/* Bottom-Left Corner: Cancel or Back */}
+              {stepperStep === 1 ? (
+                <button
+                  type="button"
+                  onClick={() => setIsProductModalOpen(false)}
+                  className="bg-white border border-slate-200 text-slate-600 hover:bg-slate-100 font-semibold text-xs uppercase tracking-wider px-5 py-2.5 rounded-xl transition-all flex items-center gap-1 cursor-pointer"
+                >
+                  Cancel
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setStepperStep((stepperStep - 1) as any)}
+                  className="bg-white border border-slate-200 text-slate-700 hover:bg-slate-100 font-semibold text-xs uppercase tracking-wider px-5 py-2.5 rounded-xl transition-all flex items-center gap-1.5 cursor-pointer"
+                >
+                  <span className="material-symbols-outlined text-sm">arrow_back</span>
+                  <span>Back</span>
+                </button>
+              )}
+
+              {/* Bottom-Right Corner: Continue or Publish */}
+              {stepperStep < 4 ? (
+                <button
+                  type="button"
+                  onClick={() => setStepperStep((stepperStep + 1) as any)}
+                  className="bg-emerald-800 hover:bg-emerald-700 text-white font-semibold text-xs uppercase tracking-wider px-6 py-2.5 rounded-xl shadow-xs flex items-center gap-2 cursor-pointer transition-all"
+                >
+                  <span>Continue</span>
+                  <span className="material-symbols-outlined text-sm">arrow_forward</span>
+                </button>
+              ) : (
+                <button 
+                  type="button"
+                  disabled={!isFormValid}
+                  onClick={handleSaveProduct}
+                  className="bg-emerald-800 hover:bg-emerald-700 disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed text-white font-semibold text-xs uppercase tracking-wider px-7 py-2.5 rounded-xl shadow-sm transition-all cursor-pointer flex items-center justify-center gap-2"
+                >
+                  {!isFormValid && <span className="material-symbols-outlined text-sm">lock</span>}
+                  <span>{editingProduct ? 'Save Changes' : 'Publish Product'}</span>
+                </button>
+              )}
+            </footer>
           </div>
         </div>
       )}

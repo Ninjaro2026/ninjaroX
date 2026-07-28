@@ -40,6 +40,7 @@ export default function ProductDetailsPage() {
   const [recentlyViewed, setRecentlyViewed] = useState<Product[]>([]);
 
   // Interactive Mouse Pointer Zoom State (Amazon / Flipkart Style)
+  const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [isZooming, setIsZooming] = useState(false);
   const [zoomPos, setZoomPos] = useState({ x: 50, y: 50 });
   const imgRef = useRef<HTMLDivElement>(null);
@@ -273,6 +274,23 @@ export default function ProductDetailsPage() {
   const relatedProducts = allProducts.filter(p => p.id !== product.id && p.category === product.category).slice(0, 4);
   const avgRating = (reviews.reduce((acc, r) => acc + r.rating, 0) / (reviews.length || 1)).toFixed(1);
 
+  const rawGalleryPhotos = [
+    ...(product.imageSrc ? [product.imageSrc] : []),
+    ...(Array.isArray(product.images) ? product.images.filter(Boolean) : [])
+  ];
+  const galleryPhotos = Array.from(new Set(rawGalleryPhotos));
+  if (galleryPhotos.length === 0) galleryPhotos.push('/bluelagoonjar.jpeg');
+
+  const currentActivePhoto = galleryPhotos[activeImageIndex] || galleryPhotos[0] || product.imageSrc;
+
+  const handlePrevPhoto = () => {
+    setActiveImageIndex(prev => (prev === 0 ? galleryPhotos.length - 1 : prev - 1));
+  };
+
+  const handleNextPhoto = () => {
+    setActiveImageIndex(prev => (prev === galleryPhotos.length - 1 ? 0 : prev + 1));
+  };
+
   return (
     <div className="min-h-screen bg-[#f7faf8] font-poppins text-emerald-900 selection:bg-emerald-200">
       
@@ -290,11 +308,11 @@ export default function ProductDetailsPage() {
             <span>Home</span>
           </Link>
           <span className="text-zinc-300 shrink-0">/</span>
-          <span className="text-zinc-500 shrink-0 max-w-[120px] sm:max-w-none truncate">
+          <span className="text-zinc-500 shrink-0 max-w-30 sm:max-w-none truncate">
             {product.category || 'Mocktail'}
           </span>
           <span className="text-zinc-300 shrink-0">/</span>
-          <span className="text-zinc-900 font-black truncate max-w-[140px] sm:max-w-none shrink-0">
+          <span className="text-zinc-900 font-black truncate max-w-35 sm:max-w-none shrink-0">
             {product.name}
           </span>
         </div>
@@ -323,17 +341,47 @@ export default function ProductDetailsPage() {
                 )}
               </div>
 
+              {/* Photo Count Pill */}
+              {galleryPhotos.length > 1 && (
+                <div className="absolute top-3 right-3 z-20 bg-slate-900/80 backdrop-blur-md text-white text-[9px] sm:text-[10px] font-mono px-2.5 py-1 rounded-full border border-white/20 font-bold shadow-xs">
+                  {activeImageIndex + 1} / {galleryPhotos.length}
+                </div>
+              )}
+
+              {/* Left / Right Slider Control Arrows */}
+              {galleryPhotos.length > 1 && (
+                <>
+                  <button 
+                    type="button"
+                    onClick={handlePrevPhoto}
+                    aria-label="Previous Photo"
+                    className="absolute left-3 top-1/2 -translate-y-1/2 z-30 w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-white/90 hover:bg-white text-slate-800 hover:text-emerald-900 shadow-lg flex items-center justify-center border border-slate-200/80 transition-all active:scale-90 cursor-pointer"
+                  >
+                    <span className="material-symbols-outlined text-lg sm:text-xl font-bold">chevron_left</span>
+                  </button>
+
+                  <button 
+                    type="button"
+                    onClick={handleNextPhoto}
+                    aria-label="Next Photo"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 z-30 w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-white/90 hover:bg-white text-slate-800 hover:text-emerald-900 shadow-lg flex items-center justify-center border border-slate-200/80 transition-all active:scale-90 cursor-pointer"
+                  >
+                    <span className="material-symbols-outlined text-lg sm:text-xl font-bold">chevron_right</span>
+                  </button>
+                </>
+              )}
+
               {/* Main Interactive Zoom Box */}
               <div 
                 ref={imgRef}
                 onMouseEnter={() => setIsZooming(true)}
                 onMouseLeave={() => setIsZooming(false)}
                 onMouseMove={handleMouseMove}
-                className="relative h-64 sm:h-80 md:h-[420px] lg:h-[460px] w-full flex items-center justify-center p-4 sm:p-6 cursor-crosshair overflow-hidden"
+                className="relative h-64 sm:h-80 md:h-105 lg:h-115 w-full flex items-center justify-center p-4 sm:p-6 cursor-crosshair overflow-hidden"
               >
                 {/* Standard Photo */}
                 <img 
-                  src={product.imageSrc} 
+                  src={currentActivePhoto} 
                   alt={product.imageAlt || product.name}
                   className={`w-full h-full object-contain transition-opacity duration-200 ${isZooming ? 'opacity-20' : 'opacity-100'}`}
                 />
@@ -343,7 +391,7 @@ export default function ProductDetailsPage() {
                   <div 
                     className="absolute inset-0 z-30 pointer-events-none transition-all duration-75"
                     style={{
-                      backgroundImage: `url(${product.imageSrc})`,
+                      backgroundImage: `url(${currentActivePhoto})`,
                       backgroundPosition: `${zoomPos.x}% ${zoomPos.y}%`,
                       backgroundSize: '280%',
                       backgroundRepeat: 'no-repeat'
@@ -361,6 +409,36 @@ export default function ProductDetailsPage() {
                 <span className="material-symbols-outlined text-sm">filter_center_focus</span> Hover cursor over image to magnify details
               </div>
             </div>
+
+            {/* Interactive Thumbnail Carousel Strip */}
+            {galleryPhotos.length > 1 && (
+              <div className="flex items-center gap-3 overflow-x-auto custom-scrollbar pb-2 pt-1">
+                {galleryPhotos.map((photoUrl, idx) => {
+                  const isActive = idx === activeImageIndex;
+                  return (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => setActiveImageIndex(idx)}
+                      className={`relative shrink-0 w-16 h-16 sm:w-20 sm:h-20 rounded-2xl border bg-white p-1.5 overflow-hidden transition-all duration-200 cursor-pointer ${
+                        isActive
+                          ? 'border-emerald-600 ring-2 ring-emerald-600/30 shadow-md scale-105'
+                          : 'border-slate-200 opacity-70 hover:opacity-100 hover:border-slate-300'
+                      }`}
+                    >
+                      <img 
+                        src={photoUrl} 
+                        alt={`${product.name} photo ${idx + 1}`} 
+                        className="w-full h-full object-contain"
+                      />
+                      {isActive && (
+                        <span className="absolute bottom-1 right-1 w-2 h-2 rounded-full bg-emerald-600"></span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           {/* RIGHT COLUMN: Product Specifications, Pricing & Actions */}

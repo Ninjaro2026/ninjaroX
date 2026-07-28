@@ -80,8 +80,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   if (!isAuthenticated) {
     return (
       <div style={loginBackgroundStyle} className="min-h-screen font-poppins text-white flex flex-col items-center justify-center p-6 relative overflow-hidden">
-        <div className="absolute top-[-10%] right-[-10%] w-[500px] h-[500px] bg-emerald-500/10 rounded-full blur-[120px] -z-10 animate-pulse"></div>
-        <div className="absolute bottom-[-10%] left-[-10%] w-[500px] h-[500px] bg-teal-500/10 rounded-full blur-[120px] -z-10 animate-pulse"></div>
+        <div className="absolute top-[-10%] right-[-10%] w-125 h-125 bg-emerald-500/10 rounded-full blur-[120px] -z-10 animate-pulse"></div>
+        <div className="absolute bottom-[-10%] left-[-10%] w-125 h-125 bg-teal-500/10 rounded-full blur-[120px] -z-10 animate-pulse"></div>
 
         <div className="w-full max-w-md space-y-8 relative z-10 text-center">
           <div>
@@ -191,15 +191,20 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       </div>
 
       {/* Footer shortcut actions */}
-      <div className="space-y-2 pt-6 border-t border-emerald-800/40">
-        <Link href="/" className="text-[10px] font-black text-emerald-100 hover:bg-emerald-800/60 transition-all uppercase tracking-wider flex items-center gap-2 bg-emerald-950/40 px-4 py-3 rounded-2xl border border-emerald-800/40 shadow-sm">
-          <span className="material-symbols-outlined text-base">home</span> Storefront
+      <div className="space-y-2 pt-5 border-t border-emerald-800/30">
+        <Link 
+          href="/" 
+          className="flex items-center gap-3 px-4 py-3 rounded-xl text-[11px] font-semibold uppercase tracking-wider text-emerald-100/90 bg-emerald-900/40 hover:bg-emerald-800/50 border border-emerald-700/30 transition-all duration-200 shadow-2xs group"
+        >
+          <span className="material-symbols-outlined text-[18px] text-emerald-300 group-hover:scale-110 transition-transform">storefront</span>
+          <span>Storefront</span>
         </Link>
         <button 
           onClick={handleLogout}
-          className="w-full text-[10px] font-black text-rose-300 hover:bg-rose-950/60 transition-all uppercase tracking-wider flex items-center gap-2 bg-rose-950/30 px-4 py-3 rounded-2xl border border-rose-800/40 shadow-sm text-left"
+          className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-[11px] font-semibold uppercase tracking-wider text-rose-300/90 bg-rose-950/20 hover:bg-rose-900/30 border border-rose-800/20 transition-all duration-200 shadow-2xs group cursor-pointer"
         >
-          <span className="material-symbols-outlined text-base">logout</span> Logout
+          <span className="material-symbols-outlined text-[18px] text-rose-400 group-hover:scale-110 transition-transform">logout</span>
+          <span>Logout</span>
         </button>
       </div>
     </div>
@@ -227,29 +232,18 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       <div className="grow flex flex-col min-w-0 min-h-screen">
         
         {/* HEADER - Solid high contrast header bar */}
-        <header className="h-20 bg-white border-b border-emerald-900/10 flex items-center justify-between px-6 md:px-8 sticky top-0 z-30 shadow-xs print:hidden">
+        <header className="h-16 bg-white border-b border-slate-200/80 flex items-center justify-between px-6 md:px-8 sticky top-0 z-30 shadow-2xs print:hidden">
           <div className="flex items-center gap-3">
             {/* Hamburger menu button for small screens */}
             <button 
               onClick={() => setIsMobileSidebarOpen(true)}
-              className="lg:hidden text-emerald-950 hover:bg-emerald-50 p-2 rounded-xl border border-emerald-900/10 transition-colors flex items-center justify-center bg-slate-50"
+              className="lg:hidden text-slate-800 hover:bg-slate-100 p-2 rounded-xl border border-slate-200 transition-colors flex items-center justify-center bg-slate-50"
             >
               <span className="material-symbols-outlined text-xl">menu</span>
             </button>
             
             <div>
-              <h2 className="text-sm md:text-base font-black uppercase text-emerald-900 tracking-tight leading-none">{pageTitle}</h2>
-              <span className="text-[9px] text-emerald-800 font-extrabold uppercase tracking-widest mt-1.5 block">Ninjaro Executive Suite</span>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3 bg-emerald-950/5 px-3.5 py-1.5 rounded-2xl border border-emerald-900/10 shadow-xs">
-            <div className="w-8 h-8 rounded-xl bg-emerald-900 text-white flex items-center justify-center font-black text-xs shadow-md">
-              A
-            </div>
-            <div className="text-left leading-none hidden sm:block">
-              <p className="text-[10px] font-black uppercase text-emerald-900 tracking-wider">System Admin</p>
-              <span className="text-[8px] font-extrabold text-emerald-800 uppercase tracking-widest mt-1 block">Live Authorized</span>
+              <h2 className="text-base font-bold uppercase text-slate-800 tracking-tight leading-none">{pageTitle}</h2>
             </div>
           </div>
         </header>

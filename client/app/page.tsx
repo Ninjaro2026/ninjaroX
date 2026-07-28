@@ -53,7 +53,7 @@ export default function Home() {
         (p.category || '').toLowerCase().includes(q)
       );
     });
-  const categoryOrder = ["Signature Combos", "Combos", "20gm Pouch (5pc)", "Jar 500gm"];
+  const categoryOrder = ["Combos", "20gm Pouch (5pc)", "Jar 500gm"];
   const isComboCategory = (cat: string) => cat === "Signature Combos" || cat === "Combos";
   const activeCategories = Array.from(new Set(visibleProducts.map(p => p.category || 'Uncategorized')));
   const sortedCategories = activeCategories.sort((a, b) => {
@@ -458,7 +458,7 @@ export default function Home() {
 <footer className="relative bg-[#032117] text-white pt-10 md:pt-14 pb-10 overflow-hidden border-t-4 border-emerald-500 font-poppins">
   {/* Abstract Liquid background effects */}
   <div className="absolute top-0 left-1/4 w-72 h-72 bg-emerald-500/10 rounded-full mix-blend-screen filter blur-[90px] opacity-50"></div>
-  <div className="absolute bottom-0 right-1/4 w-[400px] h-[400px] bg-teal-500/10 rounded-full mix-blend-screen filter blur-[100px] opacity-50"></div>
+  <div className="absolute bottom-0 right-1/4 w-100 h-100 bg-teal-500/10 rounded-full mix-blend-screen filter blur-[100px] opacity-50"></div>
 
   <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 md:px-12 relative z-10">
     <div className="flex flex-col lg:flex-row justify-between gap-8 border-b border-emerald-800/60 pb-8">

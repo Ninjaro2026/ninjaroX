@@ -181,3 +181,10 @@ export async function uploadImagesToDrive(images: (string | { base64: string; fi
     body: JSON.stringify({ images })
   });
 }
+
+export async function deleteImagesFromDrive(urls: string[]) {
+  return apiRequest('/upload/drive', {
+    method: 'DELETE',
+    body: JSON.stringify({ urls })
+  });
+}

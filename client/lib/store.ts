@@ -16,6 +16,9 @@ export interface Product {
   showInStorefront?: boolean;
   priority?: number;
   isBestSeller?: boolean;
+  customTag?: string;
+  tagPosition?: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
+  tagColor?: 'black' | 'emerald' | 'amber' | 'rose' | 'indigo' | 'purple' | string;
   images?: string[];
 }
 
