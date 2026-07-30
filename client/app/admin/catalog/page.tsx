@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect } from 'react';
 import { getStoredProducts, saveStoredProducts, getStoredOrders, Product, Order, getProductStock } from '../../../lib/store';
-import { fetchProducts, createProduct, updateProduct, deleteProduct, fetchOrders, uploadImagesToDrive, deleteImagesFromDrive } from '../../../lib/api';
+import { fetchProducts, createProduct, updateProduct, deleteProduct, fetchOrders, uploadImagesToDrive, deleteImagesFromDrive, fetchTopOfferText, updateTopOfferText } from '../../../lib/api';
 import { ProductCardSkeleton } from '../../../components/Skeleton';
 import { ProductCard } from '../../../components/ProductCard';
 
@@ -25,6 +25,11 @@ export default function CatalogPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Storefront Top Announcement Banner states
+  const [topOfferInput, setTopOfferInput] = useState('');
+  const [isSavingTopOffer, setIsSavingTopOffer] = useState(false);
+  const [topOfferSavedNotice, setTopOfferSavedNotice] = useState(false);
 
   // Modal & Stepper navigation states
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
@@ -70,10 +75,11 @@ export default function CatalogPage() {
   const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
 
   useEffect(() => {
-    Promise.all([fetchProducts(), fetchOrders()])
-      .then(([productsData, ordersData]) => {
+    Promise.all([fetchProducts(), fetchOrders(), fetchTopOfferText()])
+      .then(([productsData, ordersData, topOffer]) => {
         setProducts(productsData || []);
         setOrders(ordersData || []);
+        if (topOffer) setTopOfferInput(topOffer);
       })
       .catch(err => console.error(err))
       .finally(() => setLoading(false));
@@ -474,7 +480,60 @@ export default function CatalogPage() {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300 font-poppins pb-12">
-      
+      {/* 0. STOREFRONT TOP ANNOUNCEMENT BANNER EDITOR */}
+      <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col md:flex-row items-center justify-between gap-4">
+        <div className="flex items-center gap-3 w-full md:w-auto">
+          <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-600 flex items-center justify-center shrink-0">
+            <span className="material-symbols-outlined text-xl">campaign</span>
+          </div>
+          <div>
+            <h3 className="font-extrabold text-sm text-slate-800 tracking-tight">Top Offer Announcement Banner</h3>
+            <p className="text-[11px] text-slate-500 font-medium">Text displayed in the centered top offer pill across the storefront</p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2.5 w-full md:w-auto grow max-w-xl">
+          <input 
+            type="text" 
+            value={topOfferInput}
+            onChange={(e) => setTopOfferInput(e.target.value)}
+            placeholder="e.g. 🎁 Free Shipping Order Above ₹249 & Apply 5% Discount"
+            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs font-semibold text-slate-800 outline-none focus:border-emerald-600 focus:bg-white transition-all placeholder:text-slate-400"
+          />
+          <button
+            type="button"
+            disabled={isSavingTopOffer}
+            onClick={async () => {
+              setIsSavingTopOffer(true);
+              try {
+                await updateTopOfferText(topOfferInput);
+                setTopOfferSavedNotice(true);
+                setTimeout(() => setTopOfferSavedNotice(false), 3000);
+              } catch (err) {
+                alert('Failed to update top offer text');
+              } finally {
+                setIsSavingTopOffer(false);
+              }
+            }}
+            className="px-4 py-2 bg-emerald-800 hover:bg-emerald-900 text-white rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer shadow-xs disabled:opacity-50 flex items-center gap-1.5"
+          >
+            {isSavingTopOffer ? (
+              <span className="material-symbols-outlined text-sm animate-spin">progress_activity</span>
+            ) : topOfferSavedNotice ? (
+              <>
+                <span className="material-symbols-outlined text-sm text-emerald-300">check_circle</span>
+                <span>Saved!</span>
+              </>
+            ) : (
+              <>
+                <span className="material-symbols-outlined text-sm">save</span>
+                <span>Save Banner</span>
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+
       {/* 1. TOP CONTROL BAR */}
       <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col gap-4">
         <div className="flex flex-col lg:flex-row justify-between items-center gap-4">

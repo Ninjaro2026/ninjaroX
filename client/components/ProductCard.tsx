@@ -89,33 +89,38 @@ export function ProductCard({
     <div className="group flex flex-col rounded-2xl overflow-hidden shadow-xs border border-zinc-200/80 bg-white font-poppins relative hover:shadow-lg transition-all duration-300">
       {/* Compact Clean Image Container with Link */}
       <Link href={`/products/${id}`} className="relative h-44 sm:h-52 md:h-56 p-3 flex flex-col justify-center items-center overflow-hidden bg-slate-50/60 border-b border-zinc-100 cursor-pointer">
-        {/* Low Stock Badge */}
-        {stock > 0 && stock < 10 && (
-          <span className="absolute top-2.5 left-2.5 sm:top-3 sm:left-3 bg-amber-500 text-white font-extrabold tracking-wider text-[7px] sm:text-[9px] uppercase px-2 py-0.5 rounded-full shadow-xs z-20 animate-pulse">
-            Only {stock} Left!
-          </span>
-        )}
+        {/* TOP LEFT BADGES COLUMN */}
+        <div className="absolute top-2.5 left-2.5 sm:top-3 sm:left-3 z-20 flex flex-col items-start gap-1 pointer-events-none">
+          {activeTagText && tagPosition !== 'top-right' && (
+            <span className={`${getTagColorClass(tagColor)} text-[7px] sm:text-[9px] font-black uppercase px-2.5 py-0.5 rounded-md shadow-xs tracking-wider select-none`}>
+              {activeTagText}
+            </span>
+          )}
+          {stock > 0 && stock < 10 && (
+            <span className="bg-amber-500 text-white font-extrabold tracking-wider text-[7px] sm:text-[9px] uppercase px-2 py-0.5 rounded-full shadow-xs animate-pulse select-none">
+              Only {stock} Left!
+            </span>
+          )}
+        </div>
 
-        {/* Dynamic Red Discount Tag */}
-        {discountPct > 0 && (
-          <span className="absolute top-2.5 right-2.5 sm:top-3 sm:right-3 bg-[#f43f5e] text-white text-[7px] sm:text-[9px] font-black uppercase px-2 py-0.5 rounded-md shadow-xs z-20">
-            {discountPct}% OFF
-          </span>
-        )}
-
-        {/* Custom Tag Badge */}
-        {activeTagText && (
-          <span className={`absolute ${getTagPositionClass(tagPosition)} ${getTagColorClass(tagColor)} text-[7px] sm:text-[9px] font-black uppercase px-2.5 py-0.5 rounded-md shadow-xs z-20 tracking-wider`}>
-            {activeTagText}
-          </span>
-        )}
-
-        {/* Combo Badge */}
-        {isCombo && (
-          <span className="absolute bottom-2.5 right-2.5 sm:bottom-3 sm:right-3 bg-emerald-950 text-white text-[7px] sm:text-[9px] font-black uppercase px-2 py-0.5 rounded-full shadow-xs z-20 tracking-wider">
-            Combo Bundle
-          </span>
-        )}
+        {/* TOP RIGHT BADGES COLUMN */}
+        <div className="absolute top-2.5 right-2.5 sm:top-3 sm:right-3 z-20 flex flex-col items-end gap-1 pointer-events-none">
+          {activeTagText && tagPosition === 'top-right' && (
+            <span className={`${getTagColorClass(tagColor)} text-[7px] sm:text-[9px] font-black uppercase px-2.5 py-0.5 rounded-md shadow-xs tracking-wider select-none`}>
+              {activeTagText}
+            </span>
+          )}
+          {discountPct > 0 && (
+            <span className="bg-[#f43f5e] text-white text-[7px] sm:text-[9px] font-black uppercase px-2 py-0.5 rounded-md shadow-xs select-none">
+              {discountPct}% OFF
+            </span>
+          )}
+          {isCombo && (
+            <span className="bg-emerald-950 text-white text-[7px] sm:text-[9px] font-black uppercase px-2 py-0.5 rounded-full shadow-xs tracking-wider select-none">
+              Combo Bundle
+            </span>
+          )}
+        </div>
 
         {/* Product Image */}
         <img 

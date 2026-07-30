@@ -188,3 +188,22 @@ export async function deleteImagesFromDrive(urls: string[]) {
     body: JSON.stringify({ urls })
   });
 }
+
+// Settings API for Top Announcement Banner
+export async function fetchTopOfferText(): Promise<string> {
+  try {
+    const res = await apiRequest('/settings/top-offer');
+    return res.topOfferText || '🎁 Free Shipping Order Above ₹249 & Apply 5% Discount on Checkout';
+  } catch (err) {
+    console.warn('Failed to fetch top offer text from backend, falling back to default:', err);
+    return '🎁 Free Shipping Order Above ₹249 & Apply 5% Discount on Checkout';
+  }
+}
+
+export async function updateTopOfferText(topOfferText: string): Promise<{ success: boolean; topOfferText: string }> {
+  return apiRequest('/settings/top-offer', {
+    method: 'PUT',
+    body: JSON.stringify({ topOfferText })
+  });
+}
+

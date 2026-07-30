@@ -6,7 +6,7 @@ import { Navbar } from '../components/Navbar';
 import { Footer } from '../components/Footer';
 import { getStoredProducts, getStoredCart, saveStoredCart, Product, getProductStock, DEFAULT_PRODUCTS } from '../lib/store';
 import { AuthModal } from '../components/AuthModal';
-import { fetchProducts, getLoggedInUser, logoutUser } from '../lib/api';
+import { fetchProducts, fetchTopOfferText, getLoggedInUser, logoutUser } from '../lib/api';
 import { ProductCardSkeleton, StorefrontLoader } from '../components/Skeleton';
 
 const REVIEWS = [
@@ -28,22 +28,19 @@ const REVIEWS = [
 ];
 
 export default function Home() {
-  const [isCartOpen, setIsCartOpen] = useState(false);
-  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
-  const [cartItems, setCartItems] = useState<{name: string, price: string, img: string, quantity: number}[]>([]);
-  const [currentReview, setCurrentReview] = useState(0);
   const [products, setProducts] = useState<Product[]>([]);
-  const [isMounted, setIsMounted] = useState(false);
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isScrolled, setIsScrolled] = useState(false);
-  const [isShopDropdownOpen, setIsShopDropdownOpen] = useState(false);
-  const [currentUser, setCurrentUser] = useState<any>(null);
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
-  const [isLoadingProducts, setIsLoadingProducts] = useState(true);
+  const [cartItems, setCartItems] = useState<{name: string, price: string, img: string, quantity: number}[]>([]);
+  const [isCartOpen, setIsCartOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [currentReview, setCurrentReview] = useState(0);
+  const [isMounted, setIsMounted] = useState(false);
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [isAuthOpen, setIsAuthOpen] = useState(false);
+  const [isLoadingProducts, setIsLoadingProducts] = useState(true);
+  const [topOfferText, setTopOfferText] = useState('🎁 Free Shipping Order Above ₹249 & Apply 5% Discount on Checkout');
 
-  // Dynamic categories resolver with search filtering
-  const visibleProducts = (products.length > 0 ? products : DEFAULT_PRODUCTS)
+  // Filter products by search query
+  const visibleProducts = products
     .filter(p => p.showInStorefront !== false)
     .filter(p => {
       if (!searchQuery.trim()) return true;
@@ -72,12 +69,14 @@ export default function Home() {
       .sort((a, b) => (a.priority ?? 999) - (b.priority ?? 999));
   };
 
-  // Removed unused refs
-
   useEffect(() => {
     setIsMounted(true);
     setCurrentUser(getLoggedInUser());
     setIsLoadingProducts(true);
+
+    fetchTopOfferText().then(text => {
+      if (text) setTopOfferText(text);
+    });
 
     fetchProducts()
       .then(data => {
@@ -108,97 +107,74 @@ export default function Home() {
 
   const addToCart = (item: {name: string, price: string, img: string}) => {
     const targetProduct = products.find(p => p.name === item.name);
-    if (!targetProduct) return;
-    const currentQty = getItemQuantity(item.name);
-    if (currentQty >= targetProduct.stock) {
-      alert(`Sorry, only ${targetProduct.stock} items of ${item.name} are available in stock.`);
-      return;
-    }
-
+    const availableStock = targetProduct ? getProductStock(targetProduct, products) : 999;
+    
     setCartItems(prev => {
-      let newCart;
       const existing = prev.find(i => i.name === item.name);
       if (existing) {
-        newCart = prev.map(i => i.name === item.name ? { ...i, quantity: i.quantity + 1 } : i);
-      } else {
-        newCart = [...prev, { ...item, quantity: 1 }];
+        if (existing.quantity >= availableStock) {
+          alert(`Sorry! Maximum available stock for ${item.name} is ${availableStock}.`);
+          return prev;
+        }
+        const updated = prev.map(i => i.name === item.name ? { ...i, quantity: i.quantity + 1 } : i);
+        saveStoredCart(updated.map(u => ({ name: u.name, price: parseInt(u.price.replace(/[^\d]/g, '')), img: u.img, quantity: u.quantity })));
+        return updated;
       }
-
-      saveStoredCart(newCart.map(c => ({
-        name: c.name,
-        price: parseInt(c.price.replace(/[^\d]/g, '')) || 666,
-        img: c.img,
-        quantity: c.quantity
-      })));
-      return newCart;
+      if (availableStock < 1) {
+        alert(`Sorry! ${item.name} is currently out of stock.`);
+        return prev;
+      }
+      const updated = [...prev, { ...item, quantity: 1 }];
+      saveStoredCart(updated.map(u => ({ name: u.name, price: parseInt(u.price.replace(/[^\d]/g, '')), img: u.img, quantity: u.quantity })));
+      return updated;
     });
     setIsCartOpen(true);
   };
 
   const updateQuantity = (name: string, delta: number) => {
-    if (delta > 0) {
-      const targetProduct = products.find(p => p.name === name);
-      if (targetProduct) {
-        const currentQty = getItemQuantity(name);
-        if (currentQty >= targetProduct.stock) {
-          alert(`Sorry, only ${targetProduct.stock} items of ${name} are available in stock.`);
-          return;
-        }
-      }
-    }
+    const targetProduct = products.find(p => p.name === name);
+    const availableStock = targetProduct ? getProductStock(targetProduct, products) : 999;
 
     setCartItems(prev => {
-      const newCart = prev.map(item => {
+      const existing = prev.find(i => i.name === name);
+      if (existing && delta > 0 && existing.quantity >= availableStock) {
+        alert(`Sorry! Maximum available stock for ${name} is ${availableStock}.`);
+        return prev;
+      }
+      const updated = prev.map(item => {
         if (item.name === name) {
-          return { ...item, quantity: item.quantity + delta };
+          const newQty = item.quantity + delta;
+          return newQty > 0 ? { ...item, quantity: newQty } : null;
         }
         return item;
-      }).filter(item => item.quantity > 0);
+      }).filter(Boolean) as {name: string, price: string, img: string, quantity: number}[];
 
-      saveStoredCart(newCart.map(c => ({
-        name: c.name,
-        price: parseInt(c.price.replace(/[^\d]/g, '')) || 666,
-        img: c.img,
-        quantity: c.quantity
-      })));
-      return newCart;
+      saveStoredCart(updated.map(u => ({ name: u.name, price: parseInt(u.price.replace(/[^\d]/g, '')), img: u.img, quantity: u.quantity })));
+      return updated;
     });
   };
 
   const getItemQuantity = (name: string) => {
-    return cartItems.find(i => i.name === name)?.quantity || 0;
+    const item = cartItems.find(i => i.name === name);
+    return item ? item.quantity : 0;
   };
 
-  const totalItems = cartItems.reduce((acc, item) => acc + item.quantity, 0);
-
-  useEffect(() => {
-    const handleScroll = () => {
-      setIsScrolled(window.scrollY > 50);
-    };
-    
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    handleScroll();
-    
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
-
-  // Carousels removed
-
   return (
-    <>
+    <div className="min-h-screen bg-[#063326] text-slate-100 flex flex-col font-poppins selection:bg-emerald-500 selection:text-white">
+      {/* Navigation */}
       <Navbar 
-        totalCartItems={isMounted ? totalItems : 0}
+        totalCartItems={isMounted ? cartItems.reduce((acc, i) => acc + i.quantity, 0) : 0} 
         onOpenCart={() => setIsCartOpen(true)}
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
       />
 
       <main className="w-full min-h-screen bg-white">
-{/* Storefront Left-aligned Promo Tag & Entrance Anchor */}
+{/* Storefront Centered Promo Announcement Bar */}
 <div id="storefront" className="w-full bg-white animate-fade-in">
-  <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 md:px-12 pt-4 pb-2">
-    <div className="inline-flex bg-neutral-950 text-white text-[9px] sm:text-xs font-black uppercase px-4 py-2 rounded-sm shadow-xs tracking-wider items-center gap-1.5 select-none">
-      <span>🎁 Free Shipping Order Above ₹249 & Apply 5% Discount on Checkout</span>
+  <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 md:px-12 pt-4 pb-2 text-center flex justify-center items-center">
+    <div className="inline-flex bg-neutral-950 text-white text-[9px] sm:text-xs font-black uppercase px-4 py-2 rounded-sm shadow-xs tracking-wider items-center justify-center gap-1.5 select-none text-center">
+      <span>{topOfferText}</span>
     </div>
   </div>
 </div>
@@ -229,30 +205,28 @@ export default function Home() {
       id={sectionId}
     >
       <div className="max-w-screen-2xl mx-auto">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end mb-4 md:mb-6 gap-3 w-full">
-          <div className="space-y-1">
-            <h2 className="font-limelight text-lg sm:text-2xl md:text-3xl uppercase text-emerald-950 tracking-tight leading-none flex flex-wrap items-center gap-2">
-              {isComboCategory(category) ? (
-                <>
-                  <span>Special Offers</span>
-                  <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest bg-rose-600 text-white px-2.5 py-0.5 rounded-full shadow-xs">
-                    Best Value Deals
-                  </span>
-                </>
-              ) : (
-                category
-              )}
-            </h2>
-            <p className="text-emerald-900/70 text-xs sm:text-sm font-medium max-w-xl">
-              {isComboCategory(category)
-                ? "Exclusive curated packs & special value deals for true mocktail lovers."
-                : category === "20gm Pouch (5pc)" 
-                ? "Premium single-serving pouches designed for quick mixing." 
-                : category === "Jar 500gm"
-                ? "Bulk jars designed for heavy mixers, bars, and premium sharing." 
-                : "Curated selections to shift your state."}
-            </p>
-          </div>
+        <div className="text-center max-w-3xl mx-auto mb-6 md:mb-8 space-y-1.5 flex flex-col items-center justify-center">
+          <h2 className="font-limelight text-lg sm:text-2xl md:text-3xl uppercase text-emerald-950 tracking-tight leading-none flex flex-wrap items-center justify-center gap-2 text-center">
+            {isComboCategory(category) ? (
+              <>
+                <span>Special Offers</span>
+                <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest bg-rose-600 text-white px-2.5 py-0.5 rounded-full shadow-xs">
+                  Best Value Deals
+                </span>
+              </>
+            ) : (
+              category
+            )}
+          </h2>
+          <p className="text-emerald-900/70 text-xs sm:text-sm font-medium max-w-xl text-center mx-auto">
+            {isComboCategory(category)
+              ? "Exclusive curated packs & special value deals for true mocktail lovers."
+              : category === "20gm Pouch (5pc)" 
+              ? "Premium single-serving pouches designed for quick mixing." 
+              : category === "Jar 500gm"
+              ? "Bulk jars designed for heavy mixers, bars, and premium sharing." 
+              : "Curated selections to shift your state."}
+          </p>
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3 sm:gap-5">
           {catProducts.map((product) => {
@@ -541,15 +515,13 @@ export default function Home() {
         )}
       </div>
 
-      {/* Grid Modal Overlay removed */}
       <AuthModal 
-        isOpen={isAuthModalOpen} 
-        onClose={() => setIsAuthModalOpen(false)} 
+        isOpen={isAuthOpen} 
+        onClose={() => setIsAuthOpen(false)} 
         onSuccess={(user) => {
           setCurrentUser(user);
-          setIsProfileMenuOpen(true);
         }} 
       />
-    </>
+    </div>
   );
 }
