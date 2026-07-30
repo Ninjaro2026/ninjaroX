@@ -92,7 +92,7 @@ export default function POSPage() {
 
   // Calculations
   const subtotal = posCart.reduce((acc, item) => acc + (item.product.price * item.quantity), 0);
-  const gstAmount = Math.round(subtotal * 0.18);
+  const gstAmount = Math.round(subtotal * 0.05);
   const total = Math.max(0, subtotal + gstAmount - discountAmount);
 
   // Submit and Print Receipt
@@ -417,45 +417,25 @@ export default function POSPage() {
               
               {/* Standard Format */}
               {billFormat === 'standard' && (
-                <div className="font-poppins text-emerald-900 space-y-6 text-sm">
-                  <div className="text-center border-b border-emerald-900/10 pb-4">
-                    <h2 className="font-limelight text-3xl tracking-tighter uppercase text-emerald-900 leading-none">Ninjaro✧</h2>
-                    <p className="text-[10px] text-emerald-900/50 uppercase tracking-widest font-black mt-1">Premium Mocktail Brand</p>
-                    <p className="text-[9px] text-emerald-900/40 uppercase tracking-widest mt-1">Cash Receipt</p>
+                <div className="font-poppins text-emerald-900 space-y-4 text-xs">
+                  <div className="text-center border-b border-emerald-900/10 pb-3">
+                    <h2 className="font-limelight text-2xl uppercase tracking-tighter text-emerald-900">Ninjaro✧</h2>
+                    <p className="text-[10px] font-bold text-emerald-900 uppercase">Mocktail Premix Powder Desk</p>
+                    <p className="text-[9px] text-emerald-900/60 font-semibold">Madhyamgram, Dist: Kolkata, West Bengal - 700129</p>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-y-2 text-[10px] uppercase tracking-wider text-emerald-900/70 border-b border-emerald-900/5 pb-4">
-                    <div>Bill: <span className="font-black text-emerald-900">{receiptOrder!.id}</span></div>
-                    <div className="text-right">Date: <span className="font-black text-emerald-900">{receiptOrder!.date}</span></div>
-                    <div>Cashier: <span className="font-black text-emerald-900">Counter Desk</span></div>
-                    <div className="text-right">Mode: <span className="font-black text-emerald-900">{receiptOrder!.posPaymentMode}</span></div>
-                    {receiptOrder!.customerName && (
-                      <div className="col-span-2">Customer: <span className="font-black text-emerald-900">{receiptOrder!.customerName}</span></div>
-                    )}
-                    {receiptOrder!.posCustomerPhone && (
-                      <div className="col-span-2">Phone: <span className="font-black text-emerald-900">{receiptOrder!.posCustomerPhone}</span></div>
-                    )}
+                  <div className="flex justify-between text-[11px] text-emerald-900 font-bold">
+                    <span>Receipt #: {receiptOrder.id}</span>
+                    <span>{receiptOrder.date}</span>
                   </div>
 
-                  <div className="space-y-3">
-                    <table className="w-full text-left text-xs">
-                      <thead>
-                        <tr className="bg-emerald-900/5 text-emerald-900/50 font-black uppercase tracking-widest text-[9px] border-b border-emerald-900/10">
-                          <th className="py-2 px-1">Description</th>
-                          <th className="py-2 text-center w-12">Qty</th>
-                          <th className="py-2 text-right w-20">Price</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-emerald-900/5">
-                        {(receiptOrder!.items || []).map((item, idx) => (
-                          <tr key={idx} className="font-bold text-emerald-900">
-                            <td className="py-2.5 px-1">{item.name}</td>
-                            <td className="py-2.5 text-center text-emerald-900/60">×{item.quantity}</td>
-                            <td className="py-2.5 text-right font-black">₹{item.price}/-</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                  <div className="border-t border-b border-emerald-900/10 py-2 space-y-1">
+                    {(receiptOrder.items || []).map((item, idx) => (
+                      <div key={idx} className="flex justify-between text-emerald-900 font-semibold">
+                        <span>{item.name} x{item.quantity}</span>
+                        <span>₹{item.price}/-</span>
+                      </div>
+                    ))}
                   </div>
 
                   <div className="border-t border-emerald-900/10 pt-4 space-y-1.5 text-xs text-right">
@@ -464,15 +444,15 @@ export default function POSPage() {
                       <span>₹{(receiptOrder!.items || []).reduce((acc, item) => acc + item.price, 0)}/-</span>
                     </div>
                     <div className="flex justify-between text-emerald-900/60 font-bold">
-                      <span>CGST (9%):</span>
-                      <span>₹{Math.round((receiptOrder!.items || []).reduce((acc, item) => acc + item.price, 0) * 0.09)}/-</span>
+                      <span>CGST (2.5%):</span>
+                      <span>₹{Math.round((receiptOrder!.items || []).reduce((acc, item) => acc + item.price, 0) * 0.025)}/-</span>
                     </div>
                     <div className="flex justify-between text-emerald-900/60 font-bold">
-                      <span>SGST (9%):</span>
-                      <span>₹{Math.round((receiptOrder!.items || []).reduce((acc, item) => acc + item.price, 0) * 0.09)}/-</span>
+                      <span>SGST (2.5%):</span>
+                      <span>₹{Math.round((receiptOrder!.items || []).reduce((acc, item) => acc + item.price, 0) * 0.025)}/-</span>
                     </div>
                     {discountAmount > 0 && (
-                      <div className="flex justify-between text-red-655 font-bold">
+                      <div className="flex justify-between text-red-600 font-bold">
                         <span>Discount:</span>
                         <span>-₹{discountAmount}/-</span>
                       </div>
@@ -482,21 +462,17 @@ export default function POSPage() {
                       <span>₹{receiptOrder!.total}/-</span>
                     </div>
                   </div>
-
-                  <div className="text-center text-[9px] text-emerald-900/40 uppercase tracking-widest pt-4 border-t border-dashed border-emerald-900/10">
-                    Thank you for visiting · Please come again
-                  </div>
                 </div>
               )}
 
               {/* Thermal Monospace format */}
               {billFormat === 'thermal' && (
-                <div className="font-mono text-black text-[10px] leading-tight space-y-3 uppercase tracking-tight w-full max-w-[280px] mx-auto">
+                <div className="font-mono text-black text-[10px] leading-tight space-y-3 uppercase tracking-tight w-full max-w-70 mx-auto">
                   <div className="text-center space-y-1">
                     <h2 className="font-bold text-sm tracking-tight">NINJARO STORE</h2>
                     <p className="text-[9px]">Mocktail Premix Powder Desk</p>
-                    <p className="text-[9px]">BKC High Street, Mumbai</p>
-                    <p className="text-[9px]">Tel: +91 99999-88888</p>
+                    <p className="text-[9px]">Madhyamgram, Dist: Kolkata, West Bengal - 700129</p>
+                    <p className="text-[9px]">Tel: +91 8582938152</p>
                     <p className="text-[9px] pt-1">------- CASH MEMO -------</p>
                   </div>
 
@@ -545,12 +521,12 @@ export default function POSPage() {
                       <span>₹{(receiptOrder!.items || []).reduce((acc, item) => acc + item.price, 0)}.00</span>
                     </div>
                     <div className="flex justify-between">
-                      <span>CGST @9%:</span>
-                      <span>₹{Math.round((receiptOrder!.items || []).reduce((acc, item) => acc + item.price, 0) * 0.09)}.00</span>
+                      <span>CGST @2.5%:</span>
+                      <span>₹{Math.round((receiptOrder!.items || []).reduce((acc, item) => acc + item.price, 0) * 0.025)}.00</span>
                     </div>
                     <div className="flex justify-between">
-                      <span>SGST @9%:</span>
-                      <span>₹{Math.round((receiptOrder!.items || []).reduce((acc, item) => acc + item.price, 0) * 0.09)}.00</span>
+                      <span>SGST @2.5%:</span>
+                      <span>₹{Math.round((receiptOrder!.items || []).reduce((acc, item) => acc + item.price, 0) * 0.025)}.00</span>
                     </div>
                     {discountAmount > 0 && (
                       <div className="flex justify-between font-bold text-red-600">

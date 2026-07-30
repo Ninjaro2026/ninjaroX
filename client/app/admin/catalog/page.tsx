@@ -47,7 +47,7 @@ export default function CatalogPage() {
 
   // Flexible Custom Tag Builder states
   const [prodCustomTag, setProdCustomTag] = useState('');
-  const [prodTagPosition, setProdTagPosition] = useState<'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'>('bottom-left');
+  const [prodTagPosition, setProdTagPosition] = useState<'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'>('top-left');
   const [prodTagColor, setProdTagColor] = useState<string>('black');
 
   // Form Validation State
@@ -113,7 +113,7 @@ export default function CatalogPage() {
     setProdPriority(0);
     setProdIsBestSeller(false);
     setProdCustomTag('');
-    setProdTagPosition('bottom-left');
+    setProdTagPosition('top-left');
     setProdTagColor('black');
     setUploadedPhotos([]);
     setCustomPhotoInput('');
@@ -141,7 +141,7 @@ export default function CatalogPage() {
     setProdPriority(product.priority || 0);
     setProdIsBestSeller(!!product.isBestSeller);
     setProdCustomTag(product.customTag || (product.isBestSeller ? 'Best Seller' : ''));
-    setProdTagPosition(product.tagPosition || 'bottom-left');
+    setProdTagPosition(product.tagPosition || 'top-left');
     setProdTagColor(product.tagColor || 'black');
 
     // Load existing photos
@@ -717,7 +717,7 @@ export default function CatalogPage() {
                       
                       <div className="flex flex-col items-end shrink-0">
                         {product.mrp && product.mrp > product.price && (
-                          <span className="text-[9px] line-through text-slate-400 font-medium">
+                          <span className="text-[10px] line-through text-red-600 font-extrabold">
                             ₹{product.mrp}
                           </span>
                         )}
@@ -1268,8 +1268,6 @@ export default function CatalogPage() {
                             >
                               <option value="top-left">Top-Left</option>
                               <option value="top-right">Top-Right</option>
-                              <option value="bottom-left">Bottom-Left</option>
-                              <option value="bottom-right">Bottom-Right</option>
                             </select>
                           </div>
 

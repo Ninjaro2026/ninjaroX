@@ -45,7 +45,7 @@ export function ProductCard({
   mrp,
   isBestSeller,
   customTag,
-  tagPosition = 'bottom-left',
+  tagPosition = 'top-left',
   tagColor = 'black',
   isCombo,
   comboImages,
@@ -64,11 +64,11 @@ export function ProductCard({
   // Resolve tag placement class
   const getTagPositionClass = (pos: string) => {
     switch (pos) {
-      case 'top-left': return 'top-2.5 left-2.5 sm:top-3 sm:left-3';
       case 'top-right': return 'top-2.5 right-2.5 sm:top-3 sm:right-3';
       case 'bottom-right': return 'bottom-2.5 right-2.5 sm:bottom-3 sm:right-3';
-      case 'bottom-left':
-      default: return 'bottom-2.5 left-2.5 sm:bottom-3 sm:left-3';
+      case 'bottom-left': return 'bottom-2.5 left-2.5 sm:bottom-3 sm:left-3';
+      case 'top-left':
+      default: return 'top-2.5 left-2.5 sm:top-3 sm:left-3';
     }
   };
 
@@ -138,7 +138,7 @@ export function ProductCard({
         <div className="mt-2.5 sm:mt-3.5 pt-2.5 sm:pt-3 border-t border-zinc-100 flex items-center justify-between gap-2">
           <div className="flex flex-col">
             {mrp && (
-              <span className="text-[8px] sm:text-[9px] line-through text-zinc-400 font-bold tracking-wider">
+              <span className="text-[10px] sm:text-xs line-through text-red-600 font-extrabold tracking-wider">
                 MRP: {mrp}
               </span>
             )}

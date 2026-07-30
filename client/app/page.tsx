@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { ProductCard } from '../components/ProductCard';
 import { Navbar } from '../components/Navbar';
+import { Footer } from '../components/Footer';
 import { getStoredProducts, getStoredCart, saveStoredCart, Product, getProductStock, DEFAULT_PRODUCTS } from '../lib/store';
 import { AuthModal } from '../components/AuthModal';
 import { fetchProducts, getLoggedInUser, logoutUser } from '../lib/api';
@@ -285,6 +286,9 @@ export default function Home() {
                 stock={stockVal}
                 mrp={mrpStr}
                 isBestSeller={product.isBestSeller}
+                customTag={product.customTag}
+                tagPosition={product.tagPosition}
+                tagColor={product.tagColor}
                 isCombo={product.isCombo}
                 comboImages={comboImages}
                 onAddToCart={() => addToCart({ name: product.name, price: priceStr, img: product.imageSrc })}
@@ -457,67 +461,7 @@ export default function Home() {
 </section>
 </main>
 
-<footer className="relative bg-[#032117] text-white pt-10 md:pt-14 pb-10 overflow-hidden border-t-4 border-emerald-500 font-poppins">
-  {/* Abstract Liquid background effects */}
-  <div className="absolute top-0 left-1/4 w-72 h-72 bg-emerald-500/10 rounded-full mix-blend-screen filter blur-[90px] opacity-50"></div>
-  <div className="absolute bottom-0 right-1/4 w-100 h-100 bg-teal-500/10 rounded-full mix-blend-screen filter blur-[100px] opacity-50"></div>
-
-  <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 md:px-12 relative z-10">
-    <div className="flex flex-col lg:flex-row justify-between gap-8 border-b border-emerald-800/60 pb-8">
-      
-      {/* Brand & Newsletter */}
-      <div className="lg:w-1/2 space-y-3">
-        <h2 className="text-3xl sm:text-4xl md:text-5xl font-black text-white italic tracking-tight leading-none">
-          STAY<br/><span className="text-emerald-400">REFRESHED.</span>
-        </h2>
-        <p className="text-emerald-200/70 text-xs sm:text-sm font-medium max-w-sm">
-          Elevate your daily hydration with botanical mocktail premixes.
-        </p>
-      </div>
-
-      {/* Links Grid */}
-      <div className="lg:w-1/2 grid grid-cols-2 sm:grid-cols-3 gap-6 pt-2">
-        <div className="space-y-3">
-          <h4 className="text-emerald-400 font-black tracking-widest uppercase text-xs">The Bar</h4>
-          <ul className="space-y-2.5 text-xs font-semibold">
-            <li><a href="#" className="text-emerald-100/90 hover:text-white transition-colors">Shop All</a></li>
-            <li><a href="#" className="text-emerald-100/90 hover:text-white transition-colors">Ingredients</a></li>
-            <li><a href="#" className="text-emerald-100/90 hover:text-white transition-colors">Recipes</a></li>
-          </ul>
-        </div>
-        <div className="space-y-3">
-          <h4 className="text-emerald-400 font-black tracking-widest uppercase text-xs">Company</h4>
-          <ul className="space-y-2.5 text-xs font-semibold">
-            <li><a href="#" className="text-emerald-100/90 hover:text-white transition-colors">Our Story</a></li>
-            <li><a href="#" className="text-emerald-100/90 hover:text-white transition-colors">Wholesale</a></li>
-            <li><a href="#" className="text-emerald-100/90 hover:text-white transition-colors">Contact</a></li>
-          </ul>
-        </div>
-        <div className="space-y-3">
-          <h4 className="text-emerald-400 font-black tracking-widest uppercase text-xs">Socials</h4>
-          <div className="flex gap-3">
-            <a href="#" className="w-9 h-9 rounded-full bg-emerald-900/60 flex items-center justify-center text-emerald-200 hover:bg-emerald-500 hover:text-emerald-950 transition-all border border-emerald-700/50 shadow-sm">
-              <span className="material-symbols-outlined text-lg">photo_camera</span>
-            </a>
-            <a href="#" className="w-9 h-9 rounded-full bg-emerald-900/60 flex items-center justify-center text-emerald-200 hover:bg-emerald-500 hover:text-emerald-950 transition-all border border-emerald-700/50 shadow-sm">
-              <span className="material-symbols-outlined text-lg">public</span>
-            </a>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    {/* Bottom Footer */}
-    <div className="pt-6 flex flex-col md:flex-row justify-between items-center gap-3 text-emerald-400/80 text-xs font-bold tracking-wider uppercase">
-      <p>© 2026 Ninjaro✧. Crafted with care.</p>
-      <div className="flex gap-6">
-        <a href="#" className="hover:text-white transition-colors">Privacy</a>
-        <a href="#" className="hover:text-white transition-colors">Terms</a>
-        <a href="#" className="hover:text-white transition-colors">Shipping</a>
-      </div>
-    </div>
-  </div>
-</footer>
+<Footer />
 
       {/* Cart Sidebar Overlay */}
       {isCartOpen && (

@@ -329,8 +329,8 @@ export default function OrdersPage() {
                   <div className="text-center space-y-1">
                     <h2 className="font-bold text-sm tracking-tight text-black">NINJARO STORE</h2>
                     <p className="text-[9px]">Mocktail Premix Powder Desk</p>
-                    <p className="text-[9px]">BKC High Street, Mumbai</p>
-                    <p className="text-[9px]">Tel: +91 99999-88888</p>
+                    <p className="text-[9px]">Madhyamgram, Dist: Kolkata, West Bengal - 700129</p>
+                    <p className="text-[9px]">Tel: +91 8582938152</p>
                     <p className="text-[9px] pt-1">------- CASH MEMO -------</p>
                   </div>
 
@@ -379,12 +379,12 @@ export default function OrdersPage() {
                       <span>₹{(selectedInvoiceOrder!.items || []).reduce((acc, item) => acc + item.price, 0)}.00</span>
                     </div>
                     <div className="flex justify-between">
-                      <span>CGST @9%:</span>
-                      <span>₹{Math.round((selectedInvoiceOrder!.items || []).reduce((acc, item) => acc + item.price, 0) * 0.09)}.00</span>
+                      <span>CGST @2.5%:</span>
+                      <span>₹{Math.round((selectedInvoiceOrder!.items || []).reduce((acc, item) => acc + item.price, 0) * 0.025)}.00</span>
                     </div>
                     <div className="flex justify-between">
-                      <span>SGST @9%:</span>
-                      <span>₹{Math.round((selectedInvoiceOrder!.items || []).reduce((acc, item) => acc + item.price, 0) * 0.09)}.00</span>
+                      <span>SGST @2.5%:</span>
+                      <span>₹{Math.round((selectedInvoiceOrder!.items || []).reduce((acc, item) => acc + item.price, 0) * 0.025)}.00</span>
                     </div>
                     <div className="flex justify-between font-bold text-xs border-t border-dashed border-gray-500 pt-1.5">
                       <span>TOTAL:</span>
@@ -405,7 +405,7 @@ export default function OrdersPage() {
                     <div>
                       <h2 className="font-limelight text-4xl uppercase tracking-tighter text-emerald-900">Ninjaro✧</h2>
                       <p className="text-[10px] text-emerald-900 font-extrabold uppercase mt-1">Mocktail Premix Powder Store</p>
-                      <p className="text-[9px] text-emerald-900/50 font-bold uppercase">BKC High Street, Mumbai</p>
+                      <p className="text-[9px] text-emerald-900/50 font-bold uppercase">Madhyamgram, Dist: Kolkata, West Bengal - 700129</p>
                     </div>
                     <div className="text-right">
                       <h4 className="text-xl font-black uppercase text-emerald-900 tracking-tight">Invoice</h4>
@@ -478,12 +478,12 @@ export default function OrdersPage() {
                         <span>₹{(selectedInvoiceOrder!.items || []).reduce((acc, item) => acc + item.price, 0)}/-</span>
                       </div>
                       <div className="flex justify-between text-emerald-900/60 font-bold">
-                        <span>CGST (9%):</span>
-                        <span>₹{Math.round((selectedInvoiceOrder!.items || []).reduce((acc, item) => acc + item.price, 0) * 0.09)}/-</span>
+                        <span>CGST (2.5%):</span>
+                        <span>₹{Math.round((selectedInvoiceOrder!.items || []).reduce((acc, item) => acc + item.price, 0) * 0.025)}/-</span>
                       </div>
                       <div className="flex justify-between text-emerald-900/60 font-bold">
-                        <span>SGST (9%):</span>
-                        <span>₹{Math.round((selectedInvoiceOrder!.items || []).reduce((acc, item) => acc + item.price, 0) * 0.09)}/-</span>
+                        <span>SGST (2.5%):</span>
+                        <span>₹{Math.round((selectedInvoiceOrder!.items || []).reduce((acc, item) => acc + item.price, 0) * 0.025)}/-</span>
                       </div>
                       <div className="flex justify-between font-black text-emerald-900 text-sm pt-2 border-t border-emerald-900/10 print:border-gray-300">
                         <span>Net Invoice Total:</span>

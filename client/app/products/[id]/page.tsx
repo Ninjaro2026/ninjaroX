@@ -9,6 +9,7 @@ import { ProductCard } from '../../../components/ProductCard';
 import { ProductCardSkeleton } from '../../../components/Skeleton';
 import { AuthModal } from '../../../components/AuthModal';
 import { Navbar } from '../../../components/Navbar';
+import { Footer } from '../../../components/Footer';
 
 interface Review {
   id: string;
@@ -199,6 +200,23 @@ export default function ProductDetailsPage() {
     } else {
       router.push('/checkout');
     }
+  };
+
+  const updateCartQuantity = (name: string, delta: number) => {
+    const newCart = cartItems.map(c => {
+      if (c.name === name) {
+        return { ...c, quantity: c.quantity + delta };
+      }
+      return c;
+    }).filter(c => c.quantity > 0);
+
+    setCartItems(newCart);
+    saveStoredCart(newCart.map(c => ({
+      name: c.name,
+      price: parseInt(c.price.replace(/[^\d]/g, '')) || 0,
+      img: c.img,
+      quantity: c.quantity
+    })));
   };
 
   const handleReviewSubmit = async (e: React.FormEvent) => {
@@ -474,7 +492,7 @@ export default function ProductDetailsPage() {
               <div className="flex items-baseline gap-3 sm:gap-4 flex-wrap">
                 <span className="text-2xl sm:text-4xl font-black text-emerald-900">₹{product.price}/-</span>
                 {numMrp > numPrice && (
-                  <span className="text-xs sm:text-base text-zinc-400 line-through font-bold">MRP: ₹{numMrp}/-</span>
+                  <span className="text-sm sm:text-lg text-red-600 line-through font-extrabold">MRP: ₹{numMrp}/-</span>
                 )}
                 {discountPct > 0 && (
                   <span className="text-[10px] sm:text-xs font-black uppercase tracking-wider bg-rose-50 text-rose-600 px-2.5 py-0.5 sm:py-1 rounded-lg border border-rose-200">
@@ -493,47 +511,61 @@ export default function ProductDetailsPage() {
             </p>
 
             {/* Action Buttons & Quantity */}
-            <div className="space-y-4 pt-1">
-              <div className="flex items-center gap-3">
-                <span className="text-xs font-black uppercase tracking-wider text-zinc-900">Quantity:</span>
-                <div className="flex items-center bg-white border border-zinc-300 rounded-xl h-10 px-1 shadow-xs">
-                  <button 
-                    onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                    className="w-8 h-full flex items-center justify-center text-zinc-900 hover:bg-zinc-100 rounded-lg active:scale-95"
-                  >
-                    <span className="material-symbols-outlined text-xs font-bold">remove</span>
-                  </button>
-                  <span className="w-8 text-center font-black text-xs text-zinc-900">{quantity}</span>
-                  <button 
-                    onClick={() => setQuantity(quantity + 1)}
-                    className="w-8 h-full flex items-center justify-center text-zinc-900 hover:bg-zinc-100 rounded-lg active:scale-95"
-                  >
-                    <span className="material-symbols-outlined text-xs font-bold">add</span>
-                  </button>
+            {(() => {
+              const inCartQty = cartItems.find(i => i.name === product.name)?.quantity || 0;
+              return (
+                <div className="space-y-4 pt-1">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <span className="text-xs font-black uppercase tracking-wider text-zinc-900">Quantity:</span>
+                      <div className="flex items-center bg-white border border-zinc-300 rounded-xl h-10 px-1 shadow-xs">
+                        <button 
+                          onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                          className="w-8 h-full flex items-center justify-center text-zinc-900 hover:bg-zinc-100 rounded-lg active:scale-95"
+                        >
+                          <span className="material-symbols-outlined text-xs font-bold">remove</span>
+                        </button>
+                        <span className="w-8 text-center font-black text-xs text-zinc-900">{quantity}</span>
+                        <button 
+                          onClick={() => setQuantity(quantity + 1)}
+                          className="w-8 h-full flex items-center justify-center text-zinc-900 hover:bg-zinc-100 rounded-lg active:scale-95"
+                        >
+                          <span className="material-symbols-outlined text-xs font-bold">add</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {inCartQty > 0 && (
+                      <div className="flex items-center gap-1.5 bg-emerald-100 text-emerald-950 px-3 py-1.5 rounded-full border border-emerald-300 text-xs font-black uppercase tracking-wider shadow-xs animate-in zoom-in-95">
+                        <span className="material-symbols-outlined text-sm text-emerald-700">check_circle</span>
+                        <span>{inCartQty} in Cart</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Desktop CTA Grid */}
+                  <div className="grid grid-cols-2 gap-3 pt-1">
+                    <button 
+                      onClick={handleAddToCart}
+                      disabled={stockVal <= 0}
+                      className="bg-emerald-900 hover:bg-emerald-800 text-white font-black py-3 sm:py-3.5 px-3 sm:px-6 rounded-2xl uppercase tracking-wider text-xs flex items-center justify-center gap-1.5 shadow-md active:scale-95 transition-all disabled:opacity-50 min-h-11"
+                    >
+                      <span className="material-symbols-outlined text-base">shopping_bag</span>
+                      {inCartQty > 0 ? `Add +${quantity} More to Bag` : 'Add to Bag'}
+                    </button>
+
+                    <button 
+                      onClick={handleBuyNow}
+                      disabled={stockVal <= 0}
+                      className="bg-amber-400 hover:bg-amber-300 text-zinc-950 font-black py-3 sm:py-3.5 px-3 sm:px-6 rounded-2xl uppercase tracking-wider text-xs flex items-center justify-center gap-1.5 shadow-md active:scale-95 transition-all disabled:opacity-50 min-h-11"
+                    >
+                      <span className="material-symbols-outlined text-base">bolt</span>
+                      Buy Now
+                    </button>
+                  </div>
                 </div>
-              </div>
-
-              {/* Desktop CTA Grid */}
-              <div className="grid grid-cols-2 gap-3 pt-1">
-                <button 
-                  onClick={handleAddToCart}
-                  disabled={stockVal <= 0}
-                  className="bg-emerald-900 hover:bg-emerald-900 text-white font-black py-3 sm:py-3.5 px-3 sm:px-6 rounded-2xl uppercase tracking-wider text-xs flex items-center justify-center gap-1.5 shadow-md active:scale-95 transition-all disabled:opacity-50 min-h-[44px]"
-                >
-                  <span className="material-symbols-outlined text-base">shopping_bag</span>
-                  Add to Bag
-                </button>
-
-                <button 
-                  onClick={handleBuyNow}
-                  disabled={stockVal <= 0}
-                  className="bg-amber-400 hover:bg-amber-300 text-zinc-950 font-black py-3 sm:py-3.5 px-3 sm:px-6 rounded-2xl uppercase tracking-wider text-xs flex items-center justify-center gap-1.5 shadow-md active:scale-95 transition-all disabled:opacity-50 min-h-[44px]"
-                >
-                  <span className="material-symbols-outlined text-base">bolt</span>
-                  Buy Now
-                </button>
-              </div>
-            </div>
+              );
+            })()}
 
             {/* Value Props Grid */}
             <div className="grid grid-cols-3 gap-2 sm:gap-3 pt-3 border-t border-zinc-200/80">
@@ -755,7 +787,10 @@ export default function ProductDetailsPage() {
 
       </main>
 
-      {/* MOBILE STICKY BOTTOM ACTION BAR (Amazon / Flipkart / Shopify Mobile Best Practice) */}
+      {/* Footer */}
+      <Footer />
+
+      {/* MOBILE STICKY BOTTOM ACTION BAR */}
       <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-zinc-200/80 p-3 px-4 flex items-center justify-between gap-3 shadow-[0_-8px_25px_rgba(0,0,0,0.1)]">
         <div className="flex items-center gap-2.5 min-w-0">
           <img src={product.imageSrc} alt={product.name} className="w-10 h-10 object-contain rounded-lg bg-zinc-50 p-1 border border-zinc-200 shrink-0" />
@@ -775,6 +810,79 @@ export default function ProductDetailsPage() {
             Buy Now
           </button>
         </div>
+      </div>
+
+      {/* Cart Sidebar Overlay */}
+      {isCartOpen && (
+        <div 
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-60 transition-opacity duration-300"
+          onClick={() => setIsCartOpen(false)}
+        />
+      )}
+
+      {/* Cart Sidebar Drawer */}
+      <div 
+        className={`fixed top-0 right-0 h-full w-full sm:w-96 bg-white/95 backdrop-blur-3xl z-70 shadow-2xl transform transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] flex flex-col font-poppins border-l border-emerald-900/10 ${
+          isCartOpen ? "translate-x-0" : "translate-x-full"
+        }`}
+      >
+        <div className="p-6 flex items-center justify-between border-b border-emerald-900/10 bg-emerald-50/50 select-none">
+          <h2 className="text-2xl font-black italic uppercase text-emerald-950 tracking-widest select-none">Your Cart</h2>
+          <button 
+            onClick={() => setIsCartOpen(false)}
+            className="w-9 h-9 rounded-full bg-zinc-200/60 hover:bg-zinc-300 flex items-center justify-center text-zinc-800 hover:text-black transition-all select-none focus:outline-none"
+            aria-label="Close cart"
+          >
+            <span className="material-symbols-outlined text-lg select-none">close</span>
+          </button>
+        </div>
+
+        <div className="grow p-6 overflow-y-auto space-y-4">
+          {cartItems.length === 0 ? (
+            <div className="h-full flex flex-col items-center justify-center text-emerald-900/30 space-y-4">
+              <span className="material-symbols-outlined text-6xl opacity-50">shopping_basket</span>
+              <p className="text-lg font-bold">Your cart is empty</p>
+            </div>
+          ) : (
+            cartItems.map((item, index) => (
+              <div key={index} className="flex items-center gap-4 bg-white p-4 rounded-2xl border border-emerald-900/5 shadow-sm hover:shadow-md transition-all">
+                <div className="w-16 h-16 rounded-xl bg-emerald-50 flex items-center justify-center overflow-hidden shrink-0">
+                  <img src={item.img} alt={item.name} className="w-12 h-12 object-contain" />
+                </div>
+                <div className="grow">
+                  <h4 className="text-emerald-950 font-bold tracking-wider text-sm">{item.name}</h4>
+                  <p className="text-emerald-600 font-bold mt-1 text-xs">{item.price}</p>
+                </div>
+                <div className="flex items-center bg-emerald-50 rounded-full h-8 overflow-hidden shrink-0 border border-emerald-900/5">
+                  <button onClick={() => updateCartQuantity(item.name, -1)} className="w-8 h-full flex items-center justify-center text-emerald-950 hover:bg-emerald-100 transition-colors">
+                    <span className="material-symbols-outlined text-[16px]">remove</span>
+                  </button>
+                  <span className="w-6 text-center text-emerald-950 text-sm font-bold">{item.quantity}</span>
+                  <button onClick={() => updateCartQuantity(item.name, 1)} className="w-8 h-full flex items-center justify-center text-emerald-950 hover:bg-emerald-100 transition-colors">
+                    <span className="material-symbols-outlined text-[16px]">add</span>
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+
+        {cartItems.length > 0 && (
+          <div className="p-6 border-t border-emerald-900/10 bg-emerald-50/50 space-y-4">
+            <div className="flex justify-between items-center text-emerald-900/70">
+              <span className="font-medium">Subtotal</span>
+              <span className="font-black text-emerald-950 text-xl tracking-tight">
+                ₹{cartItems.reduce((acc, item) => {
+                  const priceNum = parseInt(item.price.replace(/[^\d]/g, '')) || 0;
+                  return acc + (priceNum * item.quantity);
+                }, 0)}/-
+              </span>
+            </div>
+            <Link href="/checkout" className="block w-full py-4 rounded-2xl bg-emerald-900 text-white font-black tracking-widest uppercase text-center hover:bg-emerald-800 active:scale-[0.98] transition-all shadow-xl shadow-emerald-900/20">
+              Proceed to Checkout
+            </Link>
+          </div>
+        )}
       </div>
 
       {/* Auth Gate Modal */}
