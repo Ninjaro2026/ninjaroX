@@ -80,6 +80,7 @@ fastify.register(require('./src/routes/auth'), { prefix: '/api/auth' });
 fastify.register(require('./src/routes/products'), { prefix: '/api/products' });
 fastify.register(require('./src/routes/orders'), { prefix: '/api/orders' });
 fastify.register(require('./src/routes/upload'), { prefix: '/api/upload' });
+fastify.register(require('./src/routes/settings'), { prefix: '/api/settings' });
 
 async function seedData() {
   try {
