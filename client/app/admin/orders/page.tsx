@@ -1,12 +1,17 @@
 "use client";
 import React, { useState, useEffect } from 'react';
 import { getStoredOrders, saveStoredOrders, Order } from '../../../lib/store';
-import { fetchOrders, updateOrderAdmin } from '../../../lib/api';
+import { fetchOrders, updateOrderAdmin, downloadBackendOrdersCSV } from '../../../lib/api';
 import { OrderCardSkeleton } from '../../../components/Skeleton';
 
 export default function OrdersPage() {
   // Storage state
   const [orders, setOrders] = useState<Order[]>([]);
+
+  // Pagination states (Limit = 20)
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalOrdersCount, setTotalOrdersCount] = useState(0);
 
   // Filtering / Search
   const [orderSearch, setOrderSearch] = useState('');
@@ -17,16 +22,35 @@ export default function OrdersPage() {
   const [selectedInvoiceOrder, setSelectedInvoiceOrder] = useState<Order | null>(null);
   const [billFormat, setBillFormat] = useState<'standard' | 'thermal'>('standard');
 
+  // Export Report Specific Filters & Controls
+  const [exportDateRange, setExportDateRange] = useState<'all' | 'today' | 'week' | 'month' | 'custom'>('all');
+  const [exportStartDate, setExportStartDate] = useState('');
+  const [exportEndDate, setExportEndDate] = useState('');
+  const [exportChannel, setExportChannel] = useState<'all' | 'online' | 'pos'>('all');
+  const [exportStatus, setExportStatus] = useState<string>('all');
+  const [showExportFilterPanel, setShowExportFilterPanel] = useState(false);
+  const [isExportingCSV, setIsExportingCSV] = useState(false);
+
   const [loading, setLoading] = useState(true);
 
+  // Fetch paginated & filtered orders from backend
   useEffect(() => {
-    fetchOrders()
-      .then(data => {
-        setOrders(data || []);
+    setLoading(true);
+    fetchOrders({
+      page: currentPage,
+      limit: 20,
+      search: orderSearch,
+      status: orderStatusFilter,
+      channel: channelFilter
+    })
+      .then(res => {
+        setOrders(res.orders || []);
+        setTotalPages(res.totalPages || 1);
+        setTotalOrdersCount(res.total || 0);
       })
       .catch(err => console.error(err))
       .finally(() => setLoading(false));
-  }, []);
+  }, [currentPage, orderSearch, orderStatusFilter, channelFilter]);
 
   // Order status transitions
   const handleOrderStatusChange = async (orderId: string, newStatus: Order['status']) => {
@@ -61,6 +85,127 @@ export default function OrdersPage() {
     return matchesSearch && matchesStatus && matchesChannel;
   });
 
+  // Dynamic Export Filtered Orders Generator
+  const getExportableOrders = () => {
+    return orders.filter(o => {
+      // 1. Channel Filter
+      if (exportChannel === 'online' && o.isPOS) return false;
+      if (exportChannel === 'pos' && !o.isPOS) return false;
+
+      // 2. Status Filter
+      if (exportStatus !== 'all' && o.status !== exportStatus) return false;
+
+      // 3. Date Range Filter
+      if (exportDateRange !== 'all') {
+        const orderDate = new Date(o.date);
+        const now = new Date();
+
+        if (exportDateRange === 'today') {
+          if (orderDate.toDateString() !== now.toDateString()) return false;
+        } else if (exportDateRange === 'week') {
+          const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+          if (orderDate < oneWeekAgo) return false;
+        } else if (exportDateRange === 'month') {
+          const oneMonthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+          if (orderDate < oneMonthAgo) return false;
+        } else if (exportDateRange === 'custom') {
+          if (exportStartDate && new Date(o.date) < new Date(exportStartDate)) return false;
+          if (exportEndDate && new Date(o.date) > new Date(exportEndDate + 'T23:59:59')) return false;
+        }
+      }
+
+      return true;
+    });
+  };
+
+  const exportableOrders = getExportableOrders();
+
+  // Sales Report Calculations based on Export Scope
+  const totalSales = exportableOrders.reduce((sum, o) => sum + (o.status !== 'Cancelled' ? o.total : 0), 0);
+  const reportOrdersCount = exportableOrders.length;
+  const onlineRevenue = exportableOrders.filter(o => !o.isPOS && o.status !== 'Cancelled').reduce((sum, o) => sum + o.total, 0);
+  const posRevenue = exportableOrders.filter(o => o.isPOS && o.status !== 'Cancelled').reduce((sum, o) => sum + o.total, 0);
+  const totalSubtotal = exportableOrders.reduce((sum, o) => sum + (o.items || []).reduce((s, i) => s + i.price, 0), 0);
+  const totalCGST = Math.round(totalSubtotal * 0.025);
+  const totalSGST = Math.round(totalSubtotal * 0.025);
+
+  // Backend CSV Export Handler
+  const handleBackendExportCSV = async () => {
+    try {
+      setIsExportingCSV(true);
+      await downloadBackendOrdersCSV({
+        timeframe: exportDateRange,
+        startDate: exportStartDate,
+        endDate: exportEndDate,
+        channel: exportChannel,
+        status: exportStatus,
+        search: orderSearch
+      });
+    } catch (err: any) {
+      alert(err.message || 'Failed to download CSV from server');
+    } finally {
+      setIsExportingCSV(false);
+    }
+  };
+
+  // CSV Report Generator
+  const exportToCSV = (ordersToExport: Order[], reportTitle = 'Sales_Report') => {
+    if (ordersToExport.length === 0) {
+      alert('No orders available in the selected export filter scope.');
+      return;
+    }
+    const headers = [
+      'Order ID',
+      'Date',
+      'Channel',
+      'Customer Name',
+      'Phone',
+      'City',
+      'Address',
+      'Payment Mode',
+      'Status',
+      'Items Summary',
+      'Subtotal (INR)',
+      'CGST 2.5% (INR)',
+      'SGST 2.5% (INR)',
+      'Grand Total (INR)'
+    ];
+
+    const rows = ordersToExport.map(o => {
+      const subtotal = (o.items || []).reduce((sum, item) => sum + item.price, 0);
+      const cgst = Math.round(subtotal * 0.025);
+      const sgst = Math.round(subtotal * 0.025);
+      const itemsSummary = (o.items || []).map(i => `${i.name} (x${i.quantity})`).join('; ');
+      
+      return [
+        `"${o.id}"`,
+        `"${o.date}"`,
+        `"${o.isPOS ? 'POS Counter' : 'Online Store'}"`,
+        `"${(o.customerName || 'Walk-In Customer').replace(/"/g, '""')}"`,
+        `"${(o.posCustomerPhone || 'N/A').replace(/"/g, '""')}"`,
+        `"${(o.shippingCity || 'N/A').replace(/"/g, '""')}"`,
+        `"${(o.shippingAddress || 'N/A').replace(/"/g, '""')}"`,
+        `"${o.posPaymentMode || 'Online Card/UPI'}"`,
+        `"${o.status}"`,
+        `"${itemsSummary.replace(/"/g, '""')}"`,
+        subtotal,
+        cgst,
+        sgst,
+        o.total
+      ];
+    });
+
+    const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `Ninjaro_${reportTitle}_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   if (loading) {
     return (
       <div className="min-h-[50vh] flex items-center justify-center font-poppins">
@@ -73,9 +218,146 @@ export default function OrdersPage() {
   }
 
   return (
-    <div className="space-y-8 print:bg-white print:p-0 print:text-black">
+    <div className="space-y-8 print:bg-white print:p-0 print:text-black font-poppins">
       
-      <main className="space-y-8 print:hidden animate-in fade-in duration-300">
+      <main className="space-y-6 print:hidden animate-in fade-in duration-300">
+        {/* 0. REPORT EXPORT HEADER & FILTER PANEL */}
+        <div className="bg-white p-6 border-2 border-emerald-900/10 rounded-3xl shadow-xl space-y-4">
+          <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-emerald-900/10 border border-emerald-900/20 text-emerald-900 flex items-center justify-center shrink-0">
+                <span className="material-symbols-outlined text-xl">assessment</span>
+              </div>
+              <div>
+                <h2 className="text-base font-black uppercase text-emerald-900 tracking-tight">Export Sales & Revenue Reports</h2>
+                <p className="text-[11px] text-emerald-900/60 font-semibold">Configure export filters (date range, channel, status) and download CSV or print PDF summary</p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 w-full md:w-auto justify-end flex-wrap">
+              <button
+                type="button"
+                onClick={() => setShowExportFilterPanel(!showExportFilterPanel)}
+                className={`px-3 py-1.5 rounded-xl text-[11px] font-extrabold uppercase tracking-wider transition-all border flex items-center gap-1 cursor-pointer ${
+                  showExportFilterPanel ? 'bg-emerald-900 text-white border-emerald-900 shadow-xs' : 'bg-slate-100 text-emerald-900 border-emerald-900/15 hover:bg-slate-200'
+                }`}
+              >
+                <span className="material-symbols-outlined text-sm">tune</span>
+                <span>Filter Options</span>
+                <span className="material-symbols-outlined text-sm">{showExportFilterPanel ? 'expand_less' : 'expand_more'}</span>
+              </button>
+
+              <button
+                type="button"
+                disabled={isExportingCSV}
+                onClick={handleBackendExportCSV}
+                className="px-3 py-1.5 bg-emerald-900 hover:bg-emerald-800 disabled:opacity-50 text-white rounded-xl text-[11px] font-extrabold tracking-wider uppercase transition-all shadow-xs flex items-center gap-1.5 cursor-pointer disabled:cursor-not-allowed"
+              >
+                {isExportingCSV ? (
+                  <span className="material-symbols-outlined text-sm animate-spin">progress_activity</span>
+                ) : (
+                  <span className="material-symbols-outlined text-sm">download</span>
+                )}
+                <span>{isExportingCSV ? 'Exporting...' : 'Export CSV'}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedInvoiceOrder(null);
+                  setTimeout(() => window.print(), 100);
+                }}
+                className="px-3 py-1.5 bg-slate-900 hover:bg-black text-white rounded-xl text-[11px] font-extrabold tracking-wider uppercase transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-sm">print</span>
+                <span>Print Report (PDF)</span>
+              </button>
+            </div>
+          </div>
+
+          {/* EXPANDABLE EXPORT FILTERS PANEL */}
+          {showExportFilterPanel && (
+            <div className="pt-4 border-t border-emerald-900/10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 bg-slate-50/80 p-4 rounded-2xl border border-emerald-900/10 animate-in fade-in duration-200">
+              {/* Date Range Selector */}
+              <div>
+                <label className="block text-[10px] font-black uppercase text-emerald-900/60 mb-1">Timeframe / Period</label>
+                <select
+                  value={exportDateRange}
+                  onChange={(e) => setExportDateRange(e.target.value as any)}
+                  className="w-full bg-white border border-emerald-900/20 rounded-xl px-3 py-2 text-xs font-bold text-emerald-950 outline-none focus:border-emerald-700"
+                >
+                  <option value="all">All Time History</option>
+                  <option value="today">Today Only</option>
+                  <option value="week">Past 7 Days (This Week)</option>
+                  <option value="month">Past 30 Days (This Month)</option>
+                  <option value="custom">Custom Date Range</option>
+                </select>
+              </div>
+
+              {/* Channel Scope Selector */}
+              <div>
+                <label className="block text-[10px] font-black uppercase text-emerald-900/60 mb-1">Sales Channel</label>
+                <select
+                  value={exportChannel}
+                  onChange={(e) => setExportChannel(e.target.value as any)}
+                  className="w-full bg-white border border-emerald-900/20 rounded-xl px-3 py-2 text-xs font-bold text-emerald-950 outline-none focus:border-emerald-700"
+                >
+                  <option value="all">All Channels (Online + POS)</option>
+                  <option value="online">Online Store Only</option>
+                  <option value="pos">POS Counter Only</option>
+                </select>
+              </div>
+
+              {/* Status Scope Selector */}
+              <div>
+                <label className="block text-[10px] font-black uppercase text-emerald-900/60 mb-1">Order Status Scope</label>
+                <select
+                  value={exportStatus}
+                  onChange={(e) => setExportStatus(e.target.value)}
+                  className="w-full bg-white border border-emerald-900/20 rounded-xl px-3 py-2 text-xs font-bold text-emerald-950 outline-none focus:border-emerald-700"
+                >
+                  <option value="all">All Order Statuses</option>
+                  <option value="Delivered">Delivered / Completed</option>
+                  <option value="Processing">Processing / Pending</option>
+                  <option value="Shipped">Shipped</option>
+                  <option value="Out for Delivery">Out for Delivery</option>
+                  <option value="Cancelled">Cancelled</option>
+                </select>
+              </div>
+
+              {/* Live Metric Badge */}
+              <div className="flex flex-col justify-center items-end bg-emerald-950 text-white p-3 rounded-xl shadow-xs">
+                <span className="text-[9px] uppercase font-bold text-emerald-200">Export Scope Match</span>
+                <span className="text-sm font-black tracking-tight">{exportableOrders.length} Orders • ₹{totalSales}/-</span>
+              </div>
+
+              {/* Custom Date Range Pickers (If Custom selected) */}
+              {exportDateRange === 'custom' && (
+                <div className="col-span-full grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-slate-200">
+                  <div>
+                    <label className="block text-[10px] font-black uppercase text-emerald-900/60 mb-1">Start Date</label>
+                    <input
+                      type="date"
+                      value={exportStartDate}
+                      onChange={(e) => setExportStartDate(e.target.value)}
+                      className="w-full bg-white border border-emerald-900/20 rounded-xl px-3 py-1.5 text-xs font-bold text-emerald-950 outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black uppercase text-emerald-900/60 mb-1">End Date</label>
+                    <input
+                      type="date"
+                      value={exportEndDate}
+                      onChange={(e) => setExportEndDate(e.target.value)}
+                      className="w-full bg-white border border-emerald-900/20 rounded-xl px-3 py-1.5 text-xs font-bold text-emerald-950 outline-none"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
         {/* Filters Header */}
         <div className="bg-white p-6 border-2 border-emerald-900/10 rounded-3xl shadow-xl flex flex-col md:flex-row justify-between items-center gap-4">
           <div className="relative w-full md:w-96 shrink-0">
@@ -264,9 +546,64 @@ export default function OrdersPage() {
             </div>
           ))}
 
-          {filteredOrders.length === 0 && (
+          {orders.length === 0 && (
             <div className="glass-panel bg-white/40 border border-white/60 p-16 text-center text-emerald-900/35 font-bold uppercase text-xs tracking-widest">
               No matching orders in system.
+            </div>
+          )}
+
+          {/* PAGINATION CONTROLS (20 Orders per page) */}
+          {totalPages > 1 && (
+            <div className="bg-white p-4 border-2 border-emerald-900/10 rounded-2xl shadow-md flex flex-col sm:flex-row items-center justify-between gap-4 font-poppins">
+              <p className="text-xs font-bold text-emerald-900/70">
+                Showing <span className="font-extrabold text-emerald-900">{(currentPage - 1) * 20 + 1}</span> to <span className="font-extrabold text-emerald-900">{Math.min(currentPage * 20, totalOrdersCount)}</span> of <span className="font-black text-emerald-900">{totalOrdersCount}</span> Orders
+              </p>
+
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  disabled={currentPage <= 1}
+                  onClick={() => {
+                    setCurrentPage(prev => Math.max(1, prev - 1));
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }}
+                  className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 disabled:opacity-40 disabled:hover:bg-slate-100 text-emerald-950 rounded-xl text-xs font-extrabold transition-all border border-emerald-900/15 flex items-center gap-1 cursor-pointer disabled:cursor-not-allowed"
+                >
+                  <span className="material-symbols-outlined text-sm">chevron_left</span>
+                  <span>Prev</span>
+                </button>
+
+                <div className="flex items-center gap-1 px-1">
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((pg) => (
+                    <button
+                      key={pg}
+                      type="button"
+                      onClick={() => {
+                        setCurrentPage(pg);
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                      }}
+                      className={`w-8 h-8 rounded-xl text-xs font-black transition-all cursor-pointer ${
+                        currentPage === pg ? 'bg-emerald-900 text-white shadow-xs' : 'text-emerald-900 hover:bg-emerald-50'
+                      }`}
+                    >
+                      {pg}
+                    </button>
+                  ))}
+                </div>
+
+                <button
+                  type="button"
+                  disabled={currentPage >= totalPages}
+                  onClick={() => {
+                    setCurrentPage(prev => Math.min(totalPages, prev + 1));
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }}
+                  className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 disabled:opacity-40 disabled:hover:bg-slate-100 text-emerald-950 rounded-xl text-xs font-extrabold transition-all border border-emerald-900/15 flex items-center gap-1 cursor-pointer disabled:cursor-not-allowed"
+                >
+                  <span>Next</span>
+                  <span className="material-symbols-outlined text-sm">chevron_right</span>
+                </button>
+              </div>
             </div>
           )}
         </div>
@@ -498,6 +835,93 @@ export default function OrdersPage() {
                   </div>
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* PRINTABLE EXECUTIVE SALES & REVENUE REPORT (Rendered when printing without single order invoice open) */}
+      {!selectedInvoiceOrder && (
+        <div id="executive-sales-report" className="hidden print:block font-poppins text-black p-8 space-y-6">
+          <div className="border-b-2 border-black pb-4 flex justify-between items-end">
+            <div>
+              <h1 className="text-3xl font-black uppercase tracking-tighter text-emerald-950">Ninjaro✧ Headquarters</h1>
+              <p className="text-xs font-bold uppercase text-gray-700">Official Sales & Revenue Report</p>
+              <p className="text-[10px] text-gray-600 font-semibold">Madhyamgram, Dist: Kolkata, West Bengal - 700129 • Ph: +91 8582938152</p>
+            </div>
+            <div className="text-right text-xs font-bold space-y-0.5">
+              <p>Report Date: {new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
+              <p className="text-[10px] text-gray-600">Period: {exportDateRange.toUpperCase()} • Channel: {exportChannel.toUpperCase()} • Status: {exportStatus.toUpperCase()}</p>
+            </div>
+          </div>
+
+          {/* Executive Summary Metrics */}
+          <div className="grid grid-cols-4 gap-4 py-2 text-center text-xs">
+            <div className="border border-gray-300 p-3 rounded-lg bg-gray-50">
+              <p className="text-[9px] uppercase font-bold text-gray-500">Total Revenue</p>
+              <p className="text-lg font-black text-emerald-900">₹{totalSales}/-</p>
+            </div>
+            <div className="border border-gray-300 p-3 rounded-lg bg-gray-50">
+              <p className="text-[9px] uppercase font-bold text-gray-500">Total Orders</p>
+              <p className="text-lg font-black text-emerald-900">{totalOrdersCount}</p>
+            </div>
+            <div className="border border-gray-300 p-3 rounded-lg bg-gray-50">
+              <p className="text-[9px] uppercase font-bold text-gray-500">Online vs POS</p>
+              <p className="text-xs font-black text-emerald-900">₹{onlineRevenue} / ₹{posRevenue}</p>
+            </div>
+            <div className="border border-gray-300 p-3 rounded-lg bg-gray-50">
+              <p className="text-[9px] uppercase font-bold text-gray-500">Total GST (5%)</p>
+              <p className="text-xs font-black text-emerald-900">₹{totalCGST + totalSGST}/-</p>
+            </div>
+          </div>
+
+          {/* Detailed Orders Breakdown Table */}
+          <div className="space-y-2">
+            <h3 className="font-bold text-xs uppercase tracking-wider border-b border-black pb-1">Itemized Sales Breakdown ({exportableOrders.length} Orders)</h3>
+            <table className="w-full text-left text-[10px] border-collapse">
+              <thead>
+                <tr className="border-b border-black font-bold uppercase text-[9px] text-gray-700">
+                  <th className="py-2">Order ID</th>
+                  <th className="py-2">Date</th>
+                  <th className="py-2">Channel</th>
+                  <th className="py-2">Customer & Phone</th>
+                  <th className="py-2">City</th>
+                  <th className="py-2">Payment</th>
+                  <th className="py-2">Status</th>
+                  <th className="py-2 text-right">Subtotal</th>
+                  <th className="py-2 text-right">GST (5%)</th>
+                  <th className="py-2 text-right">Total</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {exportableOrders.map((o) => {
+                  const sub = (o.items || []).reduce((acc, i) => acc + i.price, 0);
+                  const gst = Math.round(sub * 0.05);
+                  return (
+                    <tr key={o.id} className="py-1">
+                      <td className="py-1.5 font-bold text-emerald-950">{o.id}</td>
+                      <td className="py-1.5">{o.date}</td>
+                      <td className="py-1.5 font-semibold">{o.isPOS ? 'POS' : 'Online'}</td>
+                      <td className="py-1.5">{o.customerName || 'Walk-In'} {o.posCustomerPhone && `(${o.posCustomerPhone})`}</td>
+                      <td className="py-1.5">{o.shippingCity || '-'}</td>
+                      <td className="py-1.5">{o.posPaymentMode || 'Online'}</td>
+                      <td className="py-1.5 font-bold">{o.status}</td>
+                      <td className="py-1.5 text-right">₹{sub}</td>
+                      <td className="py-1.5 text-right">₹{gst}</td>
+                      <td className="py-1.5 text-right font-black">₹{o.total}/-</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Report Footer & Signature Stamp */}
+          <div className="pt-8 border-t border-gray-300 flex justify-between items-center text-[9px] text-gray-500">
+            <p>Ninjaro Mocktail Store • Executive Internal Audit Report • E.&O.E.</p>
+            <div className="text-center space-y-4">
+              <div className="w-36 border-b border-black"></div>
+              <p className="font-bold uppercase tracking-wider text-black">Authorized Signatory</p>
             </div>
           </div>
         </div>

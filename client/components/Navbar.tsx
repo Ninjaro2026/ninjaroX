@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { fetchProducts, getLoggedInUser, logoutUser } from '../lib/api';
+import { fetchProducts, fetchHeaderTickerText, getLoggedInUser, logoutUser } from '../lib/api';
 import { Product, DEFAULT_PRODUCTS } from '../lib/store';
 import { AuthModal } from './AuthModal';
 
@@ -20,6 +20,7 @@ export function Navbar({ totalCartItems = 0, onOpenCart, searchQuery: externalSe
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [headerTickerText, setHeaderTickerText] = useState('🎁 Special Launch Offer: Free Express Shipping on all orders above ₹249!');
 
   // Search state
   const [internalQuery, setInternalQuery] = useState('');
@@ -32,6 +33,10 @@ export function Navbar({ totalCartItems = 0, onOpenCart, searchQuery: externalSe
 
   useEffect(() => {
     setCurrentUser(getLoggedInUser());
+
+    fetchHeaderTickerText().then(text => {
+      if (text) setHeaderTickerText(text);
+    });
 
     // Fetch catalog products for real-time search lookup
     fetchProducts()
@@ -97,8 +102,8 @@ export function Navbar({ totalCartItems = 0, onOpenCart, searchQuery: externalSe
   return (
     <>
       {/* Top Banner Announcement */}
-      <div className="bg-emerald-950 text-emerald-100 text-[10px] sm:text-xs font-bold py-1.5 px-4 text-center tracking-wider uppercase flex items-center justify-center gap-2 font-poppins">
-        <span>🎁 Special Launch Offer: Free Express Shipping on all orders above ₹249!</span>
+      <div className="bg-emerald-950 text-emerald-100 text-[10px] sm:text-xs font-bold py-1.5 px-4 text-center tracking-wider uppercase flex items-center justify-center flex-wrap gap-2 font-poppins">
+        <span>{headerTickerText}</span>
         <button 
           onClick={() => {
             if (window.location.pathname !== '/') {

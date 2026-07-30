@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect } from 'react';
 import { getStoredProducts, saveStoredProducts, getStoredOrders, Product, Order, getProductStock } from '../../../lib/store';
-import { fetchProducts, createProduct, updateProduct, deleteProduct, fetchOrders, uploadImagesToDrive, deleteImagesFromDrive, fetchTopOfferText, updateTopOfferText } from '../../../lib/api';
+import { fetchProducts, createProduct, updateProduct, deleteProduct, fetchOrders, uploadImagesToDrive, deleteImagesFromDrive, fetchTopOfferText, updateTopOfferText, fetchHeaderTickerText, updateHeaderTickerText } from '../../../lib/api';
 import { ProductCardSkeleton } from '../../../components/Skeleton';
 import { ProductCard } from '../../../components/ProductCard';
 
@@ -31,6 +31,11 @@ export default function CatalogPage() {
   const [isSavingTopOffer, setIsSavingTopOffer] = useState(false);
   const [topOfferSavedNotice, setTopOfferSavedNotice] = useState(false);
 
+  // Storefront Navbar Top Ticker Banner states
+  const [headerTickerInput, setHeaderTickerInput] = useState('');
+  const [isSavingHeaderTicker, setIsSavingHeaderTicker] = useState(false);
+  const [headerTickerSavedNotice, setHeaderTickerSavedNotice] = useState(false);
+
   // Modal & Stepper navigation states
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
   const [stepperStep, setStepperStep] = useState<1 | 2 | 3 | 4>(1);
@@ -55,6 +60,19 @@ export default function CatalogPage() {
   const [prodTagPosition, setProdTagPosition] = useState<'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'>('top-left');
   const [prodTagColor, setProdTagColor] = useState<string>('black');
 
+  // Helper for tag background color class
+  const getTagColorClass = (color?: string) => {
+    switch (color) {
+      case 'emerald': return 'bg-emerald-800 text-white';
+      case 'amber': return 'bg-amber-600 text-white';
+      case 'red': return 'bg-red-600 text-white';
+      case 'blue': return 'bg-blue-600 text-white';
+      case 'purple': return 'bg-purple-600 text-white';
+      case 'black':
+      default: return 'bg-black text-white';
+    }
+  };
+
   // Form Validation State
   const isFormValid = prodName.trim().length > 0 && prodDesc.trim().length > 0 && Number(prodPrice) > 0;
 
@@ -75,11 +93,13 @@ export default function CatalogPage() {
   const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
 
   useEffect(() => {
-    Promise.all([fetchProducts(), fetchOrders(), fetchTopOfferText()])
-      .then(([productsData, ordersData, topOffer]) => {
+    Promise.all([fetchProducts(), fetchOrders({ all: true }), fetchTopOfferText(), fetchHeaderTickerText()])
+      .then(([productsData, ordersRes, topOffer, headerTicker]) => {
         setProducts(productsData || []);
-        setOrders(ordersData || []);
+        const ordersList = Array.isArray(ordersRes) ? ordersRes : (ordersRes?.orders || []);
+        setOrders(ordersList);
         if (topOffer) setTopOfferInput(topOffer);
+        if (headerTicker) setHeaderTickerInput(headerTicker);
       })
       .catch(err => console.error(err))
       .finally(() => setLoading(false));
@@ -90,7 +110,8 @@ export default function CatalogPage() {
     let unitsSold = 0;
     let revenue = 0;
     
-    orders.forEach(order => {
+    const safeOrders = Array.isArray(orders) ? orders : [];
+    safeOrders.forEach(order => {
       if (order.status !== 'Cancelled') {
         (order.items || []).forEach(item => {
           if (item.name === productName) {
@@ -480,57 +501,102 @@ export default function CatalogPage() {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300 font-poppins pb-12">
-      {/* 0. STOREFRONT TOP ANNOUNCEMENT BANNER EDITOR */}
-      <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col md:flex-row items-center justify-between gap-4">
-        <div className="flex items-center gap-3 w-full md:w-auto">
-          <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-600 flex items-center justify-center shrink-0">
-            <span className="material-symbols-outlined text-xl">campaign</span>
+      {/* 0. COMPACT STOREFRONT BANNERS ANNOUNCEMENT MANAGER */}
+      <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs space-y-3 font-poppins">
+        <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+          <div className="flex items-center gap-2">
+            <span className="material-symbols-outlined text-amber-600 text-lg">campaign</span>
+            <h3 className="font-extrabold text-xs text-slate-800 uppercase tracking-wide">Storefront Announcement Banners</h3>
           </div>
-          <div>
-            <h3 className="font-extrabold text-sm text-slate-800 tracking-tight">Top Offer Announcement Banner</h3>
-            <p className="text-[11px] text-slate-500 font-medium">Text displayed in the centered top offer pill across the storefront</p>
-          </div>
+          <span className="text-[10px] text-slate-400 font-semibold">Live storefront text controls</span>
         </div>
 
-        <div className="flex items-center gap-2.5 w-full md:w-auto grow max-w-xl">
-          <input 
-            type="text" 
-            value={topOfferInput}
-            onChange={(e) => setTopOfferInput(e.target.value)}
-            placeholder="e.g. 🎁 Free Shipping Order Above ₹249 & Apply 5% Discount"
-            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs font-semibold text-slate-800 outline-none focus:border-emerald-600 focus:bg-white transition-all placeholder:text-slate-400"
-          />
-          <button
-            type="button"
-            disabled={isSavingTopOffer}
-            onClick={async () => {
-              setIsSavingTopOffer(true);
-              try {
-                await updateTopOfferText(topOfferInput);
-                setTopOfferSavedNotice(true);
-                setTimeout(() => setTopOfferSavedNotice(false), 3000);
-              } catch (err) {
-                alert('Failed to update top offer text');
-              } finally {
-                setIsSavingTopOffer(false);
-              }
-            }}
-            className="px-4 py-2 bg-emerald-800 hover:bg-emerald-900 text-white rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer shadow-xs disabled:opacity-50 flex items-center gap-1.5"
-          >
-            {isSavingTopOffer ? (
-              <span className="material-symbols-outlined text-sm animate-spin">progress_activity</span>
-            ) : topOfferSavedNotice ? (
-              <>
-                <span className="material-symbols-outlined text-sm text-emerald-300">check_circle</span>
-                <span>Saved!</span>
-              </>
-            ) : (
-              <>
-                <span className="material-symbols-outlined text-sm">save</span>
-                <span>Save Banner</span>
-              </>
-            )}
-          </button>
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+          {/* Main Section Offer Pill Banner */}
+          <div className="space-y-1">
+            <div className="flex justify-between items-center text-[11px] font-bold text-slate-700">
+              <span className="flex items-center gap-1"><span className="text-xs">🎁</span> Main Section Offer Banner</span>
+              {topOfferSavedNotice && <span className="text-emerald-700 text-[10px] font-extrabold animate-pulse">✓ Saved!</span>}
+            </div>
+            <div className="flex items-center gap-2">
+              <input 
+                type="text" 
+                value={topOfferInput}
+                onChange={(e) => setTopOfferInput(e.target.value)}
+                placeholder="e.g. 🎁 Free Shipping Order Above ₹249"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-800 outline-none focus:border-emerald-600 focus:bg-white transition-all placeholder:text-slate-400"
+              />
+              <button
+                type="button"
+                disabled={isSavingTopOffer}
+                onClick={async () => {
+                  setIsSavingTopOffer(true);
+                  try {
+                    await updateTopOfferText(topOfferInput);
+                    setTopOfferSavedNotice(true);
+                    setTimeout(() => setTopOfferSavedNotice(false), 3000);
+                  } catch (err) {
+                    alert('Failed to update top offer text');
+                  } finally {
+                    setIsSavingTopOffer(false);
+                  }
+                }}
+                className="px-3 py-1.5 bg-emerald-800 hover:bg-emerald-900 text-white rounded-xl text-xs font-extrabold transition-all shrink-0 cursor-pointer shadow-xs disabled:opacity-50 flex items-center gap-1"
+              >
+                {isSavingTopOffer ? (
+                  <span className="material-symbols-outlined text-xs animate-spin">progress_activity</span>
+                ) : (
+                  <>
+                    <span className="material-symbols-outlined text-xs">save</span>
+                    <span>Save</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+
+          {/* Top Header Ticker Bar Banner */}
+          <div className="space-y-1">
+            <div className="flex justify-between items-center text-[11px] font-bold text-slate-700">
+              <span className="flex items-center gap-1"><span className="text-xs">📢</span> Top Header Ticker Banner</span>
+              {headerTickerSavedNotice && <span className="text-emerald-700 text-[10px] font-extrabold animate-pulse">✓ Saved!</span>}
+            </div>
+            <div className="flex items-center gap-2">
+              <input 
+                type="text" 
+                value={headerTickerInput}
+                onChange={(e) => setHeaderTickerInput(e.target.value)}
+                placeholder="e.g. 🎁 Special Launch Offer: Free Express Shipping!"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-800 outline-none focus:border-emerald-600 focus:bg-white transition-all placeholder:text-slate-400"
+              />
+              <button
+                type="button"
+                disabled={isSavingHeaderTicker}
+                onClick={async () => {
+                  setIsSavingHeaderTicker(true);
+                  try {
+                    await updateHeaderTickerText(headerTickerInput);
+                    setHeaderTickerSavedNotice(true);
+                    setTimeout(() => setHeaderTickerSavedNotice(false), 3000);
+                  } catch (err) {
+                    alert('Failed to update header ticker text');
+                  } finally {
+                    setIsSavingHeaderTicker(false);
+                  }
+                }}
+                className="px-3 py-1.5 bg-emerald-800 hover:bg-emerald-900 text-white rounded-xl text-xs font-extrabold transition-all shrink-0 cursor-pointer shadow-xs disabled:opacity-50 flex items-center gap-1"
+              >
+                {isSavingHeaderTicker ? (
+                  <span className="material-symbols-outlined text-xs animate-spin">progress_activity</span>
+                ) : (
+                  <>
+                    <span className="material-symbols-outlined text-xs">save</span>
+                    <span>Save</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -729,24 +795,33 @@ export default function CatalogPage() {
                 {/* Card Top Visual Preview */}
                 <div className="bg-slate-50/60 h-48 relative flex items-center justify-center p-3 border-b border-slate-100 overflow-hidden">
                   
-                  {/* Badges Container */}
-                  <div className="absolute top-3 left-3 flex flex-col gap-1 z-20 items-start">
-                    {activeTagText && (
-                      <span className="bg-slate-800 text-white font-semibold tracking-wider text-[8px] uppercase px-2 py-0.5 rounded-md shadow-2xs">
+                  {/* Badges Container - Left Column */}
+                  <div className="absolute top-3 left-3 flex flex-col gap-1 z-20 items-start pointer-events-none">
+                    {activeTagText && (!product.tagPosition || product.tagPosition === 'top-left' || product.tagPosition === 'bottom-left') && (
+                      <span className={`${getTagColorClass(product.tagColor)} font-bold tracking-wider text-[9px] uppercase px-2 py-0.5 rounded-md shadow-2xs`}>
                         {activeTagText}
                       </span>
                     )}
                     {product.isCombo && (
-                      <span className="bg-emerald-800 text-white font-semibold tracking-wider text-[8px] uppercase px-2 py-0.5 rounded-md shadow-2xs">
+                      <span className="bg-emerald-800 text-white font-extrabold tracking-wider text-[9px] uppercase px-2 py-0.5 rounded-md shadow-2xs">
                         Combo Pack
                       </span>
                     )}
                     {cardDiscountPct > 0 && (
-                      <span className="bg-rose-600 text-white text-[8px] font-bold uppercase px-2 py-0.5 rounded-md shadow-2xs">
+                      <span className="bg-rose-600 text-white text-[9px] font-black uppercase px-2 py-0.5 rounded-md shadow-2xs">
                         {cardDiscountPct}% OFF
                       </span>
                     )}
                   </div>
+
+                  {/* Badges Container - Right Column (Below Checkbox) */}
+                  {activeTagText && (product.tagPosition === 'top-right' || product.tagPosition === 'bottom-right') && (
+                    <div className="absolute top-3 right-11 flex flex-col items-end gap-1 z-20 pointer-events-none">
+                      <span className={`${getTagColorClass(product.tagColor)} font-bold tracking-wider text-[9px] uppercase px-2 py-0.5 rounded-md shadow-2xs`}>
+                        {activeTagText}
+                      </span>
+                    </div>
+                  )}
 
                   {/* Hidden Overlay Tag */}
                   {isHidden && (

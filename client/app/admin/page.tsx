@@ -15,10 +15,11 @@ export default function AdminPage() {
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
 
   useEffect(() => {
-    Promise.all([fetchProducts(), fetchOrders()])
+    Promise.all([fetchProducts(), fetchOrders({ all: true })])
       .then(([productsData, ordersData]) => {
         setProducts(productsData || []);
-        setOrders(ordersData || []);
+        const ordersList = Array.isArray(ordersData) ? ordersData : (ordersData?.orders || []);
+        setOrders(ordersList);
       })
       .catch(err => {
         console.error('Failed to fetch data from API', err);

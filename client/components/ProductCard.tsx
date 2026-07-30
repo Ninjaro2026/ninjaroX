@@ -86,37 +86,37 @@ export function ProductCard({
   };
 
   return (
-    <div className="group flex flex-col rounded-2xl overflow-hidden shadow-xs border border-zinc-200/80 bg-white font-poppins relative hover:shadow-lg transition-all duration-300">
+    <div className="group flex flex-col rounded-2xl sm:rounded-3xl overflow-hidden shadow-xs border border-zinc-200/80 bg-white font-poppins relative hover:shadow-xl hover:-translate-y-1 transition-all duration-300 w-full">
       {/* Compact Clean Image Container with Link */}
-      <Link href={`/products/${id}`} className="relative h-44 sm:h-52 md:h-56 p-3 flex flex-col justify-center items-center overflow-hidden bg-slate-50/60 border-b border-zinc-100 cursor-pointer">
+      <Link href={`/products/${id}`} className="relative h-44 sm:h-52 md:h-56 lg:h-60 p-2 sm:p-3 flex flex-col justify-center items-center overflow-hidden bg-slate-50/60 border-b border-zinc-100 cursor-pointer">
         {/* TOP LEFT BADGES COLUMN */}
-        <div className="absolute top-2.5 left-2.5 sm:top-3 sm:left-3 z-20 flex flex-col items-start gap-1 pointer-events-none">
+        <div className="absolute top-2.5 left-2.5 sm:top-3.5 sm:left-3.5 z-20 flex flex-col items-start gap-1 pointer-events-none">
           {activeTagText && tagPosition !== 'top-right' && (
-            <span className={`${getTagColorClass(tagColor)} text-[7px] sm:text-[9px] font-black uppercase px-2.5 py-0.5 rounded-md shadow-xs tracking-wider select-none`}>
+            <span className={`${getTagColorClass(tagColor)} text-[8px] sm:text-[10px] font-black uppercase px-2.5 sm:px-3 py-0.5 sm:py-1 rounded-md sm:rounded-lg shadow-xs tracking-wider select-none`}>
               {activeTagText}
             </span>
           )}
           {stock > 0 && stock < 10 && (
-            <span className="bg-amber-500 text-white font-extrabold tracking-wider text-[7px] sm:text-[9px] uppercase px-2 py-0.5 rounded-full shadow-xs animate-pulse select-none">
+            <span className="bg-amber-500 text-white font-extrabold tracking-wider text-[8px] sm:text-[10px] uppercase px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full shadow-xs animate-pulse select-none">
               Only {stock} Left!
             </span>
           )}
         </div>
 
         {/* TOP RIGHT BADGES COLUMN */}
-        <div className="absolute top-2.5 right-2.5 sm:top-3 sm:right-3 z-20 flex flex-col items-end gap-1 pointer-events-none">
+        <div className="absolute top-2.5 right-2.5 sm:top-3.5 sm:right-3.5 z-20 flex flex-col items-end gap-1 pointer-events-none">
           {activeTagText && tagPosition === 'top-right' && (
-            <span className={`${getTagColorClass(tagColor)} text-[7px] sm:text-[9px] font-black uppercase px-2.5 py-0.5 rounded-md shadow-xs tracking-wider select-none`}>
+            <span className={`${getTagColorClass(tagColor)} text-[8px] sm:text-[10px] font-black uppercase px-2.5 sm:px-3 py-0.5 sm:py-1 rounded-md sm:rounded-lg shadow-xs tracking-wider select-none`}>
               {activeTagText}
             </span>
           )}
           {discountPct > 0 && (
-            <span className="bg-[#f43f5e] text-white text-[7px] sm:text-[9px] font-black uppercase px-2 py-0.5 rounded-md shadow-xs select-none">
+            <span className="bg-[#f43f5e] text-white text-[8px] sm:text-[10px] font-black uppercase px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-md sm:rounded-lg shadow-xs select-none">
               {discountPct}% OFF
             </span>
           )}
           {isCombo && (
-            <span className="bg-emerald-950 text-white text-[7px] sm:text-[9px] font-black uppercase px-2 py-0.5 rounded-full shadow-xs tracking-wider select-none">
+            <span className="bg-emerald-950 text-white text-[8px] sm:text-[10px] font-black uppercase px-2.5 sm:px-3 py-0.5 sm:py-1 rounded-full shadow-xs tracking-wider select-none">
               Combo Bundle
             </span>
           )}
@@ -131,52 +131,52 @@ export function ProductCard({
       </Link>
 
       {/* Info card text and buttons */}
-      <div className="p-3 sm:p-4 flex flex-col justify-between grow bg-white">
+      <div className="p-3.5 sm:p-5 flex flex-col justify-between grow bg-white">
         <div>
           <Link href={`/products/${id}`} className="block hover:underline">
-            <h3 className="text-zinc-900 font-extrabold text-xs sm:text-sm uppercase tracking-wide leading-tight group-hover:text-emerald-950 transition-colors truncate">{name}</h3>
+            <h3 className="text-zinc-900 font-extrabold text-xs sm:text-sm uppercase tracking-wide leading-snug group-hover:text-emerald-950 transition-colors wrap-break-word">{name}</h3>
           </Link>
-          <p className="text-[9px] sm:text-[10px] text-zinc-500 font-medium leading-normal mt-1 h-6 sm:h-8 overflow-hidden line-clamp-2">{description}</p>
+          <p className="text-[10px] sm:text-xs text-zinc-500 font-medium leading-normal mt-1.5 h-7 sm:h-9 overflow-hidden line-clamp-2">{description}</p>
         </div>
 
         {/* Price & Buy Button container */}
-        <div className="mt-2.5 sm:mt-3.5 pt-2.5 sm:pt-3 border-t border-zinc-100 flex items-center justify-between gap-2">
+        <div className="mt-3 sm:mt-4 pt-3 sm:pt-3.5 border-t border-zinc-100 flex items-center justify-between gap-2 sm:gap-3">
           <div className="flex flex-col">
             {mrp && (
-              <span className="text-[10px] sm:text-xs line-through text-red-600 font-extrabold tracking-wider">
+              <span className="text-[11px] sm:text-sm line-through text-red-600 font-extrabold tracking-wider">
                 MRP: {mrp}
               </span>
             )}
-            <span className="text-xs sm:text-base font-black text-zinc-900 tracking-tight">{price}</span>
+            <span className="text-sm sm:text-xl font-black text-zinc-900 tracking-tight">{price}</span>
           </div>
 
-          <div className="w-24 sm:w-28 flex justify-end shrink-0">
+          <div className="w-24 sm:w-32 flex justify-end shrink-0">
             {stock <= 0 ? (
-              <span className="text-[7px] sm:text-[9px] font-black uppercase tracking-widest bg-red-50 text-red-500 border border-red-200 px-2 py-1 rounded-full shadow-xs text-center w-full">
+              <span className="text-[8px] sm:text-[10px] font-black uppercase tracking-widest bg-red-50 text-red-500 border border-red-200 px-2 py-1.5 rounded-xl shadow-xs text-center w-full">
                 Out of Stock
               </span>
             ) : quantity > 0 ? (
-              <div className="bg-emerald-50 text-emerald-900 border border-emerald-900/10 h-7 sm:h-8 w-full rounded-full flex items-center justify-between shadow-xs overflow-hidden">
+              <div className="bg-emerald-50 text-emerald-900 border border-emerald-900/10 h-8 sm:h-10 w-full rounded-xl sm:rounded-2xl flex items-center justify-between shadow-xs overflow-hidden">
                 <button 
                   onClick={() => onUpdateQuantity(-1)} 
-                  className="w-6 sm:w-7 h-full flex items-center justify-center hover:bg-emerald-100 transition-colors"
+                  className="w-7 sm:w-9 h-full flex items-center justify-center hover:bg-emerald-100 transition-colors"
                 >
-                  <span className="material-symbols-outlined text-xs font-bold">remove</span>
+                  <span className="material-symbols-outlined text-xs sm:text-sm font-bold">remove</span>
                 </button>
-                <span className="text-center font-black text-xs">{quantity}</span>
+                <span className="text-center font-black text-xs sm:text-sm">{quantity}</span>
                 <button 
                   onClick={() => onUpdateQuantity(1)} 
-                  className="w-6 sm:w-7 h-full flex items-center justify-center hover:bg-emerald-100 transition-colors"
+                  className="w-7 sm:w-9 h-full flex items-center justify-center hover:bg-emerald-100 transition-colors"
                 >
-                  <span className="material-symbols-outlined text-xs font-bold">add</span>
+                  <span className="material-symbols-outlined text-xs sm:text-sm font-bold">add</span>
                 </button>
               </div>
             ) : (
               <button 
                 onClick={onAddToCart} 
-                className="bg-emerald-950 hover:bg-emerald-800 text-white font-black tracking-widest uppercase text-[8px] sm:text-[9px] py-1.5 px-3 rounded-full shadow-xs hover:shadow-md active:scale-95 transition-all w-full flex items-center justify-center gap-1"
+                className="bg-emerald-950 hover:bg-emerald-800 text-white font-black tracking-widest uppercase text-[9px] sm:text-xs h-8 sm:h-10 px-3 sm:px-4 rounded-xl sm:rounded-2xl shadow-xs hover:shadow-md active:scale-95 transition-all w-full flex items-center justify-center gap-1.5"
               >
-                <span className="material-symbols-outlined text-xs hidden sm:inline-block">shopping_cart</span>
+                <span className="material-symbols-outlined text-xs sm:text-sm hidden sm:inline-block">shopping_cart</span>
                 <span>Add</span>
               </button>
             )}

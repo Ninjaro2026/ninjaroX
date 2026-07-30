@@ -228,7 +228,7 @@ export default function Home() {
               : "Curated selections to shift your state."}
           </p>
         </div>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3 sm:gap-5">
+        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 2xl:grid-cols-5 gap-4 sm:gap-6 lg:gap-8">
           {catProducts.map((product) => {
             const priceStr = `₹${product.price}/-`;
             const mrpStr = product.mrp ? `₹${product.mrp}/-` : undefined;

@@ -38,11 +38,12 @@ export default function ProfilePage() {
     setAddresses(loggedIn.addresses || []);
     setLoadingProfile(true);
 
-    Promise.all([getProfile(), fetchOrders()])
+    Promise.all([getProfile(), fetchOrders({ all: true })])
       .then(([profileData, orderData]) => {
         setUser(profileData);
         setAddresses(profileData.addresses || []);
-        setOrders(orderData || []);
+        const ordersList = Array.isArray(orderData) ? orderData : (orderData?.orders || []);
+        setOrders(ordersList);
       })
       .catch(err => {
         console.warn('Could not load profile from API, using cached state', err);

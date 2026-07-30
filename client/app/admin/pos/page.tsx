@@ -33,10 +33,11 @@ export default function POSPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    Promise.all([fetchProducts(), fetchOrders()])
+    Promise.all([fetchProducts(), fetchOrders({ all: true })])
       .then(([productsData, ordersData]) => {
         setProducts(productsData || []);
-        setOrders(ordersData || []);
+        const ordersList = Array.isArray(ordersData) ? ordersData : (ordersData?.orders || []);
+        setOrders(ordersList);
       })
       .catch(err => console.error(err))
       .finally(() => setLoading(false));
