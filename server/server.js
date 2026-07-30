@@ -101,10 +101,11 @@ async function seedData() {
         addresses: [
           {
             label: 'Ninjaro Headquarters',
-            street: '77 Mocktail Towers, Phase 1',
-            city: 'Mumbai',
-            state: 'Maharashtra',
-            zip: '400051',
+            street: 'Madhyamgram',
+            city: 'Madhyamgram',
+            district: 'Kolkata',
+            state: 'West Bengal',
+            zip: '700129',
             isDefault: true
           }
         ]
