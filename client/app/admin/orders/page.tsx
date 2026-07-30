@@ -277,7 +277,7 @@ export default function OrdersPage() {
 
           {/* EXPANDABLE EXPORT FILTERS PANEL */}
           {showExportFilterPanel && (
-            <div className="pt-4 border-t border-emerald-900/10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 bg-slate-50/80 p-4 rounded-2xl border border-emerald-900/10 animate-in fade-in duration-200">
+            <div className="pt-4 border-t grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 bg-slate-50/80 p-4 rounded-2xl border border-emerald-900/10 animate-in fade-in duration-200">
               {/* Date Range Selector */}
               <div>
                 <label className="block text-[10px] font-black uppercase text-emerald-900/60 mb-1">Timeframe / Period</label>
@@ -616,7 +616,7 @@ export default function OrdersPage() {
           <div className="absolute inset-0 bg-emerald-900/40 backdrop-blur-sm print:hidden" onClick={() => setSelectedInvoiceOrder(null)}></div>
           
           {/* Invoice Body */}
-          <div className="bg-white w-full max-w-2xl h-[720px] rounded-[2.5rem] shadow-2xl p-8 relative z-10 flex flex-col justify-between overflow-hidden border border-emerald-900/5 print:rounded-none print:shadow-none print:border-none print:w-full print:p-8 print:h-auto">
+          <div className="bg-white w-full max-w-2xl h-180 rounded-[2.5rem] shadow-2xl p-8 relative z-10 flex flex-col justify-between overflow-hidden border border-emerald-900/5 print:rounded-none print:shadow-none print:border-none print:w-full print:p-8 print:h-auto">
             
             {/* Header controls (Hidden in print) */}
             <div className="flex flex-col gap-4 mb-8 border-b border-emerald-900/5 pb-4 print:hidden shrink-0">
@@ -662,7 +662,7 @@ export default function OrdersPage() {
               
               {/* Thermal Monospace format */}
               {selectedInvoiceOrder.isPOS && billFormat === 'thermal' ? (
-                <div className="font-mono text-black text-[10px] leading-tight space-y-3 uppercase tracking-tight w-full max-w-[280px] mx-auto">
+                <div className="font-mono text-black text-[10px] leading-tight space-y-3 uppercase tracking-tight w-full max-w-70 mx-auto">
                   <div className="text-center space-y-1">
                     <h2 className="font-bold text-sm tracking-tight text-black">NINJARO STORE</h2>
                     <p className="text-[9px]">Mocktail Premix Powder Desk</p>

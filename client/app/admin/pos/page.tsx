@@ -372,7 +372,7 @@ export default function POSPage() {
         <div className="print-receipt-modal-overlay fixed inset-0 z-100 flex items-center justify-center p-6 bg-emerald-950/40 backdrop-blur-sm print:static print:bg-white print:p-0 print:block">
           
           {/* Main Card */}
-          <div className="print-receipt-card bg-white w-full max-w-md h-[680px] rounded-[2.5rem] shadow-2xl p-6 relative z-10 flex flex-col justify-between overflow-hidden border border-emerald-900/5 print:rounded-none print:shadow-none print:border-none print:w-full print:p-0 print:h-auto">
+          <div className="print-receipt-card bg-white w-full max-w-md h-170 rounded-[2.5rem] shadow-2xl p-6 relative z-10 flex flex-col justify-between overflow-hidden border border-emerald-900/5 print:rounded-none print:shadow-none print:border-none print:w-full print:p-0 print:h-auto">
             
             {/* Modal Controls */}
             <div className="flex flex-col gap-4 mb-6 print:hidden shrink-0">

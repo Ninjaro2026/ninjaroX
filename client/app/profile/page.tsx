@@ -156,7 +156,7 @@ export default function ProfilePage() {
                 </div>
                 <div className="flex justify-between items-center py-1 border-b border-zinc-50">
                   <span className="text-zinc-400 font-bold uppercase text-[10px]">Email Address</span>
-                  <span className="font-bold text-zinc-700 truncate max-w-[160px]">{user.email}</span>
+                  <span className="font-bold text-zinc-700 truncate max-w-40">{user.email}</span>
                 </div>
                 <div className="flex justify-between items-center py-1 border-b border-zinc-50">
                   <span className="text-zinc-400 font-bold uppercase text-[10px]">Saved Addresses</span>

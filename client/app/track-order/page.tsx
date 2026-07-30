@@ -41,9 +41,10 @@ export default function TrackOrderPage() {
     }
 
     // 2. Fetch past deliveries for logged-in user
-    fetchOrders()
+    fetchOrders({ all: true })
       .then(ordersData => {
-        setPastOrders(ordersData || []);
+        const ordersList = Array.isArray(ordersData) ? ordersData : (ordersData?.orders || []);
+        setPastOrders(ordersList);
       })
       .catch(err => {
         console.warn('Could not fetch past orders', err);
@@ -223,7 +224,7 @@ export default function TrackOrderPage() {
                 <p className="text-zinc-400 text-[11px] font-medium">Click any order to load logistics timeline</p>
               </div>
 
-              <div className="space-y-3 max-h-[500px] overflow-y-auto pr-1">
+              <div className="space-y-3 max-h-125 overflow-y-auto pr-1">
                 {pastOrders.length === 0 ? (
                   <p className="text-xs font-bold text-zinc-400 text-center py-6">No previous orders found.</p>
                 ) : (

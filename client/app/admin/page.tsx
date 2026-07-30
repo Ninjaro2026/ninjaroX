@@ -203,7 +203,7 @@ export default function AdminPage() {
                   <tr key={order.id} className="hover:bg-emerald-50/50 transition-colors">
                     <td className="px-4 py-4 font-black text-emerald-950 text-[11px]">{order.id}</td>
                     <td className="px-4 py-4 font-semibold text-emerald-900">{order.customerName || 'Walk-In'}</td>
-                    <td className="px-4 py-4 text-emerald-900/70 font-medium max-w-[180px]">
+                    <td className="px-4 py-4 text-emerald-900/70 font-medium max-w-45">
                       <span className="truncate block" title={(order.items || []).map(i => `${i.name} x${i.quantity}`).join(', ')}>
                         {(order.items || []).map(i => `${i.name.replace(/\s*\(.*\)/, '')} ×${i.quantity}`).join(', ')}
                       </span>
