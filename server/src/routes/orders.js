@@ -10,17 +10,169 @@ const razorpay = new Razorpay({
 });
 
 async function orderRoutes(fastify, opts) {
-  // GET /api/orders
-  // Admin gets all orders. Customer gets their own orders.
+  // GET /api/orders (Paginated & Filtered)
   fastify.get('/', { preHandler: [fastify.authenticate] }, async (request, reply) => {
     try {
       const user = request.currentUser;
-      let query = {};
+      const page = Math.max(1, parseInt(request.query.page) || 1);
+      const limit = Math.max(1, parseInt(request.query.limit) || 20);
+      const skip = (page - 1) * limit;
+
+      const { search, status, channel, all } = request.query;
+
+      let mongoQuery = {};
       if (user.role !== 'admin') {
-        query.userId = user._id;
+        mongoQuery.userId = user._id;
       }
-      const orders = await Order.find(query).sort({ createdAt: -1 });
-      return orders;
+
+      if (channel === 'pos') {
+        mongoQuery.isPOS = true;
+      } else if (channel === 'online') {
+        mongoQuery.isPOS = { $ne: true };
+      }
+
+      if (status && status !== 'All' && status !== 'all') {
+        mongoQuery.status = status;
+      }
+
+      if (search && search.trim()) {
+        const regex = new RegExp(search.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+        mongoQuery.$or = [
+          { id: regex },
+          { customerName: regex },
+          { posCustomerPhone: regex },
+          { shippingCity: regex },
+          { 'items.name': regex }
+        ];
+      }
+
+      // If 'all=true' is explicitly passed (e.g. for complete export or non-paginated view)
+      if (all === 'true') {
+        const orders = await Order.find(mongoQuery).sort({ createdAt: -1 });
+        return { orders, total: orders.length, page: 1, limit: orders.length, totalPages: 1 };
+      }
+
+      const total = await Order.countDocuments(mongoQuery);
+      const orders = await Order.find(mongoQuery)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit);
+
+      const totalPages = Math.ceil(total / limit) || 1;
+
+      return {
+        orders,
+        total,
+        page,
+        limit,
+        totalPages
+      };
+    } catch (err) {
+      return reply.code(500).send({ error: err.message });
+    }
+  });
+
+  // GET /api/orders/export/csv (Admin Only - Backend CSV Export)
+  fastify.get('/export/csv', { preHandler: [fastify.requireAdmin] }, async (request, reply) => {
+    try {
+      const { timeframe, startDate, endDate, channel, status, search } = request.query;
+      let mongoQuery = {};
+
+      if (channel === 'pos') {
+        mongoQuery.isPOS = true;
+      } else if (channel === 'online') {
+        mongoQuery.isPOS = { $ne: true };
+      }
+
+      if (status && status !== 'all' && status !== 'All') {
+        mongoQuery.status = status;
+      }
+
+      if (search && search.trim()) {
+        const regex = new RegExp(search.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+        mongoQuery.$or = [
+          { id: regex },
+          { customerName: regex },
+          { posCustomerPhone: regex },
+          { shippingCity: regex },
+          { 'items.name': regex }
+        ];
+      }
+
+      // Timeframe Date Filter
+      if (timeframe && timeframe !== 'all') {
+        const now = new Date();
+        let start;
+        if (timeframe === 'today') {
+          start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        } else if (timeframe === 'week') {
+          start = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        } else if (timeframe === 'month') {
+          start = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        } else if (timeframe === 'custom') {
+          if (startDate) {
+            start = new Date(startDate);
+          }
+          if (endDate) {
+            const end = new Date(endDate + 'T23:59:59');
+            mongoQuery.createdAt = { ...mongoQuery.createdAt, $lte: end };
+          }
+        }
+        if (start) {
+          mongoQuery.createdAt = { ...mongoQuery.createdAt, $gte: start };
+        }
+      }
+
+      const orders = await Order.find(mongoQuery).sort({ createdAt: -1 });
+
+      const headers = [
+        'Order ID',
+        'Date',
+        'Channel',
+        'Customer Name',
+        'Phone',
+        'City',
+        'Address',
+        'Payment Mode',
+        'Status',
+        'Items Summary',
+        'Subtotal (INR)',
+        'CGST 2.5% (INR)',
+        'SGST 2.5% (INR)',
+        'Grand Total (INR)'
+      ];
+
+      const rows = orders.map(o => {
+        const subtotal = (o.items || []).reduce((sum, item) => sum + item.price, 0);
+        const cgst = Math.round(subtotal * 0.025);
+        const sgst = Math.round(subtotal * 0.025);
+        const itemsSummary = (o.items || []).map(i => `${i.name} (x${i.quantity})`).join('; ');
+        
+        return [
+          `"${o.id}"`,
+          `"${o.date}"`,
+          `"${o.isPOS ? 'POS Counter' : 'Online Store'}"`,
+          `"${(o.customerName || 'Walk-In Customer').replace(/"/g, '""')}"`,
+          `"${(o.posCustomerPhone || 'N/A').replace(/"/g, '""')}"`,
+          `"${(o.shippingCity || 'N/A').replace(/"/g, '""')}"`,
+          `"${(o.shippingAddress || 'N/A').replace(/"/g, '""')}"`,
+          `"${o.posPaymentMode || 'Online Card/UPI'}"`,
+          `"${o.status}"`,
+          `"${itemsSummary.replace(/"/g, '""')}"`,
+          subtotal,
+          cgst,
+          sgst,
+          o.total
+        ];
+      });
+
+      const csvString = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+      const fileName = `Ninjaro_Sales_Report_${new Date().toISOString().split('T')[0]}.csv`;
+      
+      reply
+        .header('Content-Type', 'text/csv; charset=utf-8')
+        .header('Content-Disposition', `attachment; filename="${fileName}"`)
+        .send(csvString);
     } catch (err) {
       return reply.code(500).send({ error: err.message });
     }

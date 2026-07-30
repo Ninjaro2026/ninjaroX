@@ -31,6 +31,36 @@ async function settingsRoutes(fastify, opts) {
       return reply.code(500).send({ error: err.message });
     }
   });
+  // GET /api/settings/header-ticker
+  fastify.get('/header-ticker', async (request, reply) => {
+    try {
+      const setting = await Settings.findOne({ key: 'headerTickerText' });
+      const defaultText = '🎁 Special Launch Offer: Free Express Shipping on all orders above ₹249!';
+      return { headerTickerText: setting ? setting.value : defaultText };
+    } catch (err) {
+      return reply.code(500).send({ error: err.message });
+    }
+  });
+
+  // PUT /api/settings/header-ticker (Admin Only)
+  fastify.put('/header-ticker', { preHandler: [fastify.requireAdmin] }, async (request, reply) => {
+    try {
+      const { headerTickerText } = request.body || {};
+      if (typeof headerTickerText !== 'string') {
+        return reply.code(400).send({ error: 'headerTickerText must be a string' });
+      }
+
+      const updated = await Settings.findOneAndUpdate(
+        { key: 'headerTickerText' },
+        { key: 'headerTickerText', value: headerTickerText.trim() },
+        { upsert: true, new: true }
+      );
+
+      return { success: true, headerTickerText: updated.value };
+    } catch (err) {
+      return reply.code(500).send({ error: err.message });
+    }
+  });
 }
 
 module.exports = settingsRoutes;
