@@ -430,7 +430,7 @@ export default function ProductDetailsPage() {
 
             {/* Interactive Thumbnail Carousel Strip */}
             {galleryPhotos.length > 1 && (
-              <div className="flex items-center gap-3 overflow-x-auto custom-scrollbar pb-2 pt-1">
+              <div className="flex items-center gap-3 sm:gap-3.5 overflow-x-auto custom-scrollbar p-2 -mx-1">
                 {galleryPhotos.map((photoUrl, idx) => {
                   const isActive = idx === activeImageIndex;
                   return (
@@ -440,7 +440,7 @@ export default function ProductDetailsPage() {
                       onClick={() => setActiveImageIndex(idx)}
                       className={`relative shrink-0 w-16 h-16 sm:w-20 sm:h-20 rounded-2xl border bg-white p-1.5 overflow-hidden transition-all duration-200 cursor-pointer ${
                         isActive
-                          ? 'border-emerald-600 ring-2 ring-emerald-600/30 shadow-md scale-105'
+                          ? 'border-emerald-600 ring-2 ring-emerald-600/40 shadow-md scale-105 z-10'
                           : 'border-slate-200 opacity-70 hover:opacity-100 hover:border-slate-300'
                       }`}
                     >
