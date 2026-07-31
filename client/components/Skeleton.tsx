@@ -34,20 +34,11 @@ export function ProductCardSkeleton() {
   );
 }
 
-// Brand Loading Spinner Banner
-export function StorefrontLoader({ title = "Loading Botanical Premixes...", subtitle = "Ninjaro✧ • Shifting your state" }: { title?: string; subtitle?: string }) {
+// Brand Loading Spinner Banner (Simple Minimalistic Textless Loader)
+export function StorefrontLoader() {
   return (
-    <div className="w-full py-16 md:py-24 flex flex-col items-center justify-center space-y-5 text-center animate-fade-in font-poppins">
-      <div className="relative">
-        <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full border-4 border-emerald-900/10 border-t-emerald-900 animate-spin-ring flex items-center justify-center"></div>
-        <div className="absolute inset-0 flex items-center justify-center text-emerald-900 text-lg font-black italic select-none">
-          ✧
-        </div>
-      </div>
-      <div className="space-y-1">
-        <h3 className="text-base sm:text-lg font-black uppercase tracking-tight text-emerald-950">{title}</h3>
-        <p className="text-xs sm:text-sm text-emerald-900/60 font-medium tracking-widest uppercase">{subtitle}</p>
-      </div>
+    <div className="w-full py-8 md:py-12 flex items-center justify-center animate-fade-in">
+      <div className="w-7 h-7 sm:w-9 sm:h-9 rounded-full border-2 border-emerald-900/15 border-t-emerald-950 animate-spin"></div>
     </div>
   );
 }

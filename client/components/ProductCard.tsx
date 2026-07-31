@@ -134,39 +134,39 @@ export function ProductCard({
       <div className="p-3.5 sm:p-5 flex flex-col justify-between grow bg-white">
         <div>
           <Link href={`/products/${id}`} className="block hover:underline">
-            <h3 className="text-zinc-900 font-extrabold text-xs sm:text-sm uppercase tracking-wide leading-snug group-hover:text-emerald-950 transition-colors wrap-break-word">{name}</h3>
+            <h3 className="font-outfit text-zinc-900 font-bold text-xs sm:text-sm uppercase tracking-wide leading-snug group-hover:text-emerald-950 transition-colors wrap-break-word">{name}</h3>
           </Link>
-          <p className="text-[10px] sm:text-xs text-zinc-500 font-medium leading-normal mt-1.5 h-7 sm:h-9 overflow-hidden line-clamp-2">{description}</p>
+          <p className="font-jakarta text-[10px] sm:text-xs text-zinc-500 font-medium leading-normal mt-1.5 h-7 sm:h-9 overflow-hidden line-clamp-2 whitespace-pre-line">{description}</p>
         </div>
 
         {/* Price & Buy Button container */}
         <div className="mt-3 sm:mt-4 pt-3 sm:pt-3.5 border-t border-zinc-100 flex items-center justify-between gap-2 sm:gap-3">
           <div className="flex flex-col">
             {mrp && (
-              <span className="text-[11px] sm:text-sm line-through text-red-600 font-extrabold tracking-wider">
+              <span className="font-outfit text-[11px] sm:text-xs line-through text-red-500 font-bold tracking-wide">
                 MRP: {mrp}
               </span>
             )}
-            <span className="text-sm sm:text-xl font-black text-zinc-900 tracking-tight">{price}</span>
+            <span className="font-outfit text-base sm:text-xl font-extrabold text-zinc-900 tracking-tight">{price}</span>
           </div>
 
           <div className="w-24 sm:w-32 flex justify-end shrink-0">
             {stock <= 0 ? (
-              <span className="text-[8px] sm:text-[10px] font-black uppercase tracking-widest bg-red-50 text-red-500 border border-red-200 px-2 py-1.5 rounded-xl shadow-xs text-center w-full">
+              <span className="font-outfit text-[8px] sm:text-[10px] font-bold uppercase tracking-wider bg-red-50 text-red-500 border border-red-200 px-2 py-1.5 rounded-xl shadow-xs text-center w-full">
                 Out of Stock
               </span>
             ) : quantity > 0 ? (
               <div className="bg-emerald-50 text-emerald-900 border border-emerald-900/10 h-8 sm:h-10 w-full rounded-xl sm:rounded-2xl flex items-center justify-between shadow-xs overflow-hidden">
                 <button 
                   onClick={() => onUpdateQuantity(-1)} 
-                  className="w-7 sm:w-9 h-full flex items-center justify-center hover:bg-emerald-100 transition-colors"
+                  className="w-7 sm:w-9 h-full flex items-center justify-center hover:bg-emerald-100 transition-colors cursor-pointer"
                 >
                   <span className="material-symbols-outlined text-xs sm:text-sm font-bold">remove</span>
                 </button>
-                <span className="text-center font-black text-xs sm:text-sm">{quantity}</span>
+                <span className="font-outfit text-center font-bold text-xs sm:text-sm">{quantity}</span>
                 <button 
                   onClick={() => onUpdateQuantity(1)} 
-                  className="w-7 sm:w-9 h-full flex items-center justify-center hover:bg-emerald-100 transition-colors"
+                  className="w-7 sm:w-9 h-full flex items-center justify-center hover:bg-emerald-100 transition-colors cursor-pointer"
                 >
                   <span className="material-symbols-outlined text-xs sm:text-sm font-bold">add</span>
                 </button>
@@ -174,7 +174,7 @@ export function ProductCard({
             ) : (
               <button 
                 onClick={onAddToCart} 
-                className="bg-emerald-950 hover:bg-emerald-800 text-white font-black tracking-widest uppercase text-[9px] sm:text-xs h-8 sm:h-10 px-3 sm:px-4 rounded-xl sm:rounded-2xl shadow-xs hover:shadow-md active:scale-95 transition-all w-full flex items-center justify-center gap-1.5"
+                className="font-outfit bg-emerald-950 hover:bg-emerald-800 text-white font-bold tracking-wider uppercase text-[9px] sm:text-xs h-8 sm:h-10 px-3 sm:px-4 rounded-xl sm:rounded-2xl shadow-xs hover:shadow-md active:scale-95 transition-all w-full flex items-center justify-center gap-1.5 cursor-pointer"
               >
                 <span className="material-symbols-outlined text-xs sm:text-sm hidden sm:inline-block">shopping_cart</span>
                 <span>Add</span>

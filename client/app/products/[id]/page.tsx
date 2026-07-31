@@ -506,9 +506,12 @@ export default function ProductDetailsPage() {
             </div>
 
             {/* Description */}
-            <p className="text-xs sm:text-sm font-semibold text-zinc-700 leading-relaxed bg-zinc-50 p-3.5 sm:p-4 rounded-2xl border border-zinc-200/60">
-              {product.description}
-            </p>
+            <div className="bg-white p-5 sm:p-6 rounded-2xl sm:rounded-3xl border border-zinc-200/80 shadow-xs space-y-2">
+              <span className="text-[10px] font-black uppercase tracking-wider text-zinc-400 block">Product Details & Highlights</span>
+              <p className="text-xs sm:text-sm font-semibold text-zinc-800 leading-relaxed whitespace-pre-line">
+                {product.description}
+              </p>
+            </div>
 
             {/* Action Buttons & Quantity */}
             {(() => {

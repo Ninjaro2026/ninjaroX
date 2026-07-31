@@ -861,7 +861,7 @@ export default function CatalogPage() {
                       </div>
                     </div>
 
-                    <p className="text-slate-500 text-xs leading-relaxed line-clamp-2 font-medium">{product.description}</p>
+                    <p className="text-slate-500 text-xs leading-relaxed line-clamp-2 font-medium whitespace-pre-line">{product.description}</p>
                     
                     {/* Combo constituent items summary */}
                     {product.isCombo && product.comboItems && (
@@ -1021,7 +1021,7 @@ export default function CatalogPage() {
 
             {/* Stepper Content Area */}
             <div className="p-6 overflow-y-auto grow custom-scrollbar">
-              <form id="stepper-form" onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault(); }} className="space-y-6">
+              <form id="stepper-form" onKeyDown={(e) => { if (e.key === 'Enter' && (e.target as HTMLElement).tagName !== 'TEXTAREA') e.preventDefault(); }} className="space-y-6">
                 
                 {/* STEP 1: FORMAT & CATEGORY */}
                 {stepperStep === 1 && (
@@ -1167,14 +1167,17 @@ export default function CatalogPage() {
 
                     {/* Description Textarea */}
                     <div className="space-y-1.5">
-                      <label className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 block">Flavor Description & Preparation Notes *</label>
+                      <div className="flex justify-between items-center">
+                        <label className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 block">Flavor Description & Preparation Notes *</label>
+                        <span className="text-[9px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">✓ Press Enter for new lines & bullet points</span>
+                      </div>
                       <textarea 
                         required
-                        rows={3}
+                        rows={6}
                         value={prodDesc}
                         onChange={(e) => setProdDesc(e.target.value)}
-                        placeholder="Describe flavor profile, ingredients, and preparation steps..." 
-                        className="w-full bg-slate-50/60 border border-slate-200 rounded-xl p-3.5 text-xs font-medium outline-none focus:border-emerald-600 focus:bg-white transition-all text-slate-800 placeholder-slate-400 leading-relaxed custom-scrollbar"
+                        placeholder="Describe flavor profile, ingredients, and preparation steps...&#10;Line breaks and spacing (Enter key) are preserved on the storefront!" 
+                        className="w-full bg-slate-50/60 border border-slate-200 rounded-xl p-3.5 text-xs font-medium outline-none focus:border-emerald-600 focus:bg-white transition-all text-slate-800 placeholder-slate-400 leading-relaxed custom-scrollbar whitespace-pre-wrap"
                       ></textarea>
                     </div>
 
